@@ -1,0 +1,88 @@
+{
+  "name": "Sunbird-MCP-Integration-Demo",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "dcim-query",
+        "httpMethod": "POST",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "DCIM Query Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "dcim-query"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://sunbird-mcp-server.aitp-ai.svc.cluster.local:8080/mcp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"{{ $runIndex }}\",\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"{{ $json.tool || 'dctrack_list_locations' }}\",\n    \"arguments\": {{ JSON.stringify($json.arguments || {}) }}\n  }\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "mcp-call",
+      "name": "Call MCP Server",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const mcpResponse = $input.first().json;\n\n// Extract the result from MCP response\nlet result;\ntry {\n  if (mcpResponse.result && mcpResponse.result.content) {\n    // Parse the text content from MCP response\n    const textContent = mcpResponse.result.content.find(c => c.type === 'text');\n    if (textContent) {\n      result = JSON.parse(textContent.text);\n    }\n  } else if (mcpResponse.result) {\n    result = mcpResponse.result;\n  } else {\n    result = mcpResponse;\n  }\n} catch (e) {\n  result = mcpResponse;\n}\n\nreturn {\n  json: {\n    success: !mcpResponse.error,\n    data: result,\n    error: mcpResponse.error || null,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "process-response",
+      "name": "Process MCP Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [710, 300]
+    }
+  ],
+  "connections": {
+    "DCIM Query Webhook": {
+      "main": [
+        [
+          {
+            "node": "Call MCP Server",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call MCP Server": {
+      "main": [
+        [
+          {
+            "node": "Process MCP Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "DCIM",
+      "id": "1"
+    },
+    {
+      "name": "MCP",
+      "id": "2"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2024-12-23T00:00:00.000Z",
+  "versionId": "1"
+}

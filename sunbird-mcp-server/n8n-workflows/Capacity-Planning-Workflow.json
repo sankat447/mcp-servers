@@ -1,0 +1,112 @@
+{
+  "name": "DCIM-Capacity-Planning-MCP",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "capacity-planning",
+        "httpMethod": "POST",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Capacity Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "capacity-planning"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://sunbird-mcp-server:8080/tools/dcim_find_capacity",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"requiredU\": {{ $json.requiredU || 4 }},\n  \"requiredPowerKw\": {{ $json.requiredPowerKw || 2 }},\n  \"contiguous\": {{ $json.contiguous !== false }}\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "find-capacity",
+      "name": "Find Available Capacity",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [480, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://sunbird-mcp-server:8080/tools/dcim_get_health_status",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"includeAlerts\": true,\n  \"includePUE\": true\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "health-status",
+      "name": "Get Health Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Capacity Request').first().json;\nconst capacityResult = $('Find Available Capacity').first().json;\nconst healthResult = $('Get Health Status').first().json;\n\n// Parse results\nconst capacity = capacityResult.result || capacityResult;\nconst health = healthResult.result || healthResult;\n\n// Build recommendation\nconst matchingCabinets = capacity.matchingCabinets || [];\nconst topRecommendation = matchingCabinets[0] || null;\n\nlet recommendation = '';\nlet status = 'success';\n\nif (matchingCabinets.length === 0) {\n  recommendation = 'No cabinets found matching the requirements. Consider:\\n' +\n    '1. Reducing space or power requirements\\n' +\n    '2. Planning capacity expansion\\n' +\n    '3. Consolidating existing workloads';\n  status = 'no_capacity';\n} else {\n  recommendation = `Found ${matchingCabinets.length} suitable cabinet(s). ` +\n    `Top recommendation: ${topRecommendation.cabinetName} in ${topRecommendation.location} ` +\n    `with ${topRecommendation.availableU}U space and ${topRecommendation.availablePowerKw.toFixed(1)}kW power available.`;\n}\n\n// Add health context\nif (health.alerts && health.alerts.critical > 0) {\n  recommendation += `\\n\\n⚠️ Warning: ${health.alerts.critical} critical alert(s) active in the environment.`;\n}\n\nreturn {\n  json: {\n    status,\n    request: {\n      requiredU: request.requiredU || 4,\n      requiredPowerKw: request.requiredPowerKw || 2\n    },\n    recommendation,\n    topCabinet: topRecommendation,\n    alternativeCabinets: matchingCabinets.slice(1, 5),\n    totalMatches: matchingCabinets.length,\n    environmentHealth: {\n      score: health.healthScore,\n      status: health.status,\n      pue: health.pue?.current,\n      activeAlerts: health.alerts\n    },\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "analyze-results",
+      "name": "Analyze & Recommend",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [750, 300]
+    }
+  ],
+  "connections": {
+    "Capacity Request": {
+      "main": [
+        [
+          {
+            "node": "Find Available Capacity",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Health Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Available Capacity": {
+      "main": [
+        [
+          {
+            "node": "Analyze & Recommend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Health Status": {
+      "main": [
+        [
+          {
+            "node": "Analyze & Recommend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2024-12-23T00:00:00.000Z",
+  "versionId": "1"
+}

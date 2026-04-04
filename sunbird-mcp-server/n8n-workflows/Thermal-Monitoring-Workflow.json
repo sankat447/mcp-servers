@@ -1,0 +1,209 @@
+{
+  "name": "DCIM-Thermal-Monitoring-MCP",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://sunbird-mcp-server:8080/tools/dcim_thermal_analysis",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"includeRecommendations\": true\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "thermal-analysis",
+      "name": "Get Thermal Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://sunbird-mcp-server:8080/tools/poweriq_get_pue",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"resolution\": \"hourly\"\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "pue-data",
+      "name": "Get PUE Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [480, 450]
+    },
+    {
+      "parameters": {
+        "jsCode": "const thermalResult = $('Get Thermal Analysis').first().json;\nconst pueResult = $('Get PUE Data').first().json;\n\nconst thermal = thermalResult.result || thermalResult;\nconst pueData = pueResult.result || pueResult;\n\n// Analyze thermal status\nconst hotspots = thermal.hotspots || [];\nconst criticalHotspots = hotspots.filter(h => h.status === 'critical');\nconst warningHotspots = hotspots.filter(h => h.status === 'warning');\n\n// Determine overall status\nlet overallStatus = 'healthy';\nlet alertLevel = 'none';\nlet message = 'All thermal readings within normal range.';\n\nif (criticalHotspots.length > 0) {\n  overallStatus = 'critical';\n  alertLevel = 'critical';\n  message = `CRITICAL: ${criticalHotspots.length} location(s) exceeding temperature limits!`;\n} else if (warningHotspots.length > 0) {\n  overallStatus = 'warning';\n  alertLevel = 'warning';\n  message = `WARNING: ${warningHotspots.length} location(s) approaching temperature limits.`;\n}\n\n// Add PUE context\nconst currentPUE = pueData[0]?.pue || pueData.pue || null;\nlet pueStatus = 'unknown';\nif (currentPUE) {\n  if (currentPUE > 2.0) pueStatus = 'critical';\n  else if (currentPUE > 1.8) pueStatus = 'poor';\n  else if (currentPUE > 1.5) pueStatus = 'average';\n  else if (currentPUE > 1.3) pueStatus = 'good';\n  else pueStatus = 'excellent';\n}\n\nreturn {\n  json: {\n    overallStatus,\n    alertLevel,\n    message,\n    thermal: {\n      averageTemp: thermal.summary?.averageTemperature,\n      maxTemp: thermal.summary?.maxTemperature,\n      minTemp: thermal.summary?.minTemperature,\n      hotspotCount: hotspots.length,\n      criticalCount: criticalHotspots.length,\n      warningCount: warningHotspots.length,\n      ashraeCompliance: thermal.summary?.ashraeCompliantPercent\n    },\n    hotspots: hotspots.slice(0, 10),\n    recommendations: thermal.recommendations || [],\n    pue: {\n      current: currentPUE,\n      status: pueStatus,\n      itPowerKw: pueData[0]?.itPowerKw,\n      facilityPowerKw: pueData[0]?.facilityPowerKw\n    },\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "analyze-thermal",
+      "name": "Analyze Thermal Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [750, 375]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.alertLevel}}",
+              "operation": "notEqual",
+              "value2": "none"
+            }
+          ]
+        }
+      },
+      "id": "check-alert",
+      "name": "Alert Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [980, 375]
+    },
+    {
+      "parameters": {
+        "channel": "#dc-ops-monitoring",
+        "text": "=🌡️ *DCIM Thermal Alert*\n\n*Status:* {{ $json.overallStatus.toUpperCase() }}\n*Message:* {{ $json.message }}\n\n*Thermal Summary:*\n• Average Temp: {{ $json.thermal.averageTemp?.toFixed(1) || 'N/A' }}°C\n• Max Temp: {{ $json.thermal.maxTemp?.toFixed(1) || 'N/A' }}°C\n• Hotspots: {{ $json.thermal.hotspotCount }} ({{ $json.thermal.criticalCount }} critical)\n• ASHRAE Compliance: {{ $json.thermal.ashraeCompliance?.toFixed(0) || 'N/A' }}%\n\n*PUE:* {{ $json.pue.current?.toFixed(2) || 'N/A' }} ({{ $json.pue.status }})\n\n*Top Recommendations:*\n{{ $json.recommendations.slice(0, 3).map((r, i) => `${i + 1}. ${r}`).join('\\n') || 'None' }}\n\n_{{ $json.timestamp }}_",
+        "otherOptions": {}
+      },
+      "id": "slack-alert",
+      "name": "Send Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1200, 275],
+      "credentials": {
+        "slackApi": {
+          "id": "1",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "thermal_readings",
+        "fields": "overallStatus,alertLevel,thermal,pue,timestamp"
+      },
+      "id": "store-reading",
+      "name": "Store in MongoDB",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1,
+      "position": [1200, 475],
+      "credentials": {
+        "mongoDb": {
+          "id": "1",
+          "name": "mongodb-aitp"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Get Thermal Analysis",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get PUE Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Thermal Analysis": {
+      "main": [
+        [
+          {
+            "node": "Analyze Thermal Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get PUE Data": {
+      "main": [
+        [
+          {
+            "node": "Analyze Thermal Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Thermal Status": {
+      "main": [
+        [
+          {
+            "node": "Check Alert Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Needed?": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Store in MongoDB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Store in MongoDB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2024-12-23T00:00:00.000Z",
+  "versionId": "1"
+}
