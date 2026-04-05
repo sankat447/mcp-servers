@@ -745,6 +745,10 @@ async function sendMessage() {
             if (rawData && rawData.success === true && rawData.result !== undefined) {
                 rawData = rawData.result;
             }
+            // If tool returned an error, treat as no data
+            if (rawData && rawData.success === false) {
+                rawData = null;
+            }
 
             // Detect paginated response: { data: [...], totalRows, showing, pageSize }
             let paginationMeta = null;
@@ -807,12 +811,14 @@ async function sendMessage() {
                 addMessage(chatMsg, false, rawData, toolUsed);
                 displayData(rawData, toolUsed);
             } else {
-                // No raw data — show full LLM summary in chat
+                // No raw data — show full LLM summary in chat, clear stale Data Viewer
+                clearDataViewer();
                 messageHistory.push({ role: 'assistant', content: fullContent });
                 addMessage(fullContent, false);
             }
         } else {
-            // No tool — plain conversational answer
+            // No tool — plain conversational answer, clear stale Data Viewer
+            clearDataViewer();
             messageHistory.push({ role: 'assistant', content: fullContent });
             addMessage(fullContent, false);
         }
@@ -973,7 +979,7 @@ function displayData(rawData, toolName) {
 function extractRows(data) {
     if (!data) return null;
     if (Array.isArray(data)) return data.length > 0 && typeof data[0] === 'object' ? data : null;
-    const keys = ['result','items','searchResults','locations','cabinets','connections',
+    const keys = ['positions','result','items','searchResults','locations','cabinets','connections',
                   'models','pdus','racks','sensors','outlets','readings',
                   'events','alarms','results','data','records','list',
                   'tickets','requests','projects','ports','makes'];
@@ -1162,17 +1168,24 @@ function switchView(view) {
     jsonView.style.display = view === 'json' ? 'block' : 'none';
 }
 
+// ─── Clear Data Viewer (reset to empty state) ───
+function clearDataViewer() {
+    currentRawData = null;
+    dataEmpty.style.display = 'flex';
+    tableView.innerHTML = '';
+    tableView.style.display = 'none';
+    jsonView.innerHTML = '';
+    jsonView.style.display = 'none';
+    dataStats.style.display = 'none';
+    toolBadge.classList.remove('visible');
+}
+
 // ─── Clear ───
 function clearChat() {
     messagesEl.innerHTML = '';
     messageHistory = [];
     suggestionsEl.style.display = 'flex';
-    currentRawData = null;
-    dataEmpty.style.display = 'flex';
-    tableView.style.display = 'none';
-    jsonView.style.display = 'none';
-    dataStats.style.display = 'none';
-    toolBadge.classList.remove('visible');
+    clearDataViewer();
 }
 
 // ─── Health ───

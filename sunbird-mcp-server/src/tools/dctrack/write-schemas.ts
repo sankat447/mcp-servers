@@ -7,8 +7,11 @@ import { z } from 'zod';
 export const createItemSchema = z.object({
   tiName: z.string().describe('Item name (required)'),
   tiClass: z.string().describe('Item class: Device, Network, Rack PDU, etc.'),
-  cmbLocation: z.string().optional().describe('Location path (e.g., "DC1/Room1/Row1")'),
-  cabinetId: z.number().optional().describe('Cabinet ID to place item in'),
+  cmbLocation: z.string().optional().describe('Location path (e.g., "AI-DEMO-DC > AI-ROOM-01")'),
+  cabinetId: z.number().optional().describe('Cabinet ID (numeric) — will be resolved to cabinet name'),
+  cabinetName: z.string().optional().describe('Cabinet name (e.g., "AI-CAB-01") — preferred over cabinetId'),
+  make: z.string().optional().describe('Manufacturer name (e.g., "APC", "Rittal") — required by dcTrack'),
+  model: z.string().optional().describe('Model name (e.g., "AP8861") — required by dcTrack'),
   tiUPosition: z.number().optional().describe('U position in cabinet (bottom of item)'),
   tiMounting: z.enum(['Front', 'Rear', 'ZeroU']).optional().describe('Mounting position'),
   modelId: z.number().optional().describe('Model ID from model library'),
@@ -91,7 +94,8 @@ export const bulkUpdateSchema = z.object({
 
 export const createCabinetSchema = z.object({
   name: z.string(),
-  locationId: z.number(),
+  locationId: z.number().optional().describe('Location ID (numeric)'),
+  locationName: z.string().optional().describe('Location name (e.g., "AI-ROOM-01", "ROOM 01") — preferred, auto-resolves'),
   make: z.string().optional().describe('Make/manufacturer name (e.g., "Rittal")'),
   model: z.string().optional().describe('Model name (e.g., "Orsted VX5311.116")'),
   modelId: z.number().optional(),

@@ -13,6 +13,15 @@ export function createHTTPServer() {
   const app = express();
   app.use(express.json());
 
+  // CORS — allow cross-origin requests from the chat UI
+  app.use((_req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (_req.method === 'OPTIONS') { res.sendStatus(204); return; }
+    next();
+  });
+
   // -----------------------------------------------------------------------
   // Health
   // -----------------------------------------------------------------------
@@ -133,11 +142,47 @@ export function createHTTPServer() {
     logger.info({ tool: toolName, args: req.body }, 'Direct tool call');
 
     try {
-      const result = await handleToolCall(toolName as string, req.body as Record<string, any>);
+      let result = await handleToolCall(toolName as string, req.body as Record<string, any>);
+
+      // Auto-wrap quicksearch responses with pagination metadata
+      // Quicksearch results have { totalRows, pageNumber, searchResults: { items/models/... } }
+      // Already-wrapped results have { data, totalRows, showing } — skip those
+      if (result && typeof result === 'object' && !Array.isArray(result)
+          && typeof result.totalRows === 'number' && result.searchResults
+          && !result.data) {
+        const sr = result.searchResults;
+        const rows = sr.items ?? sr.models ?? sr.tickets ?? sr.parts ?? sr.partModels
+                   ?? sr.auditTrail ?? sr.relationships ?? Object.values(sr)[0] ?? [];
+        const dataArr = Array.isArray(rows) ? rows : [];
+        result = {
+          data: dataArr,
+          totalRows: result.totalRows,
+          showing: dataArr.length,
+          pageSize: result.pageSize ?? dataArr.length,
+        };
+      }
+
       res.json({ success: true, result });
     } catch (error: any) {
       logger.error({ tool: toolName, error: error.message }, 'Direct tool call failed');
-      res.status(500).json({ success: false, error: error.message });
+      // Return 200 with success:false for API-level errors (not found, invalid input, etc.)
+      // so downstream consumers (n8n httpRequest) don't throw on the HTTP status.
+      // Extract a human-friendly message from nested dcTrack/PowerIQ error responses.
+      let friendlyMsg = error.message || 'Tool execution failed';
+      try {
+        // dcTrack errors are often: "API error from dctrack: ... — {json}"
+        const jsonMatch = friendlyMsg.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          // Prefer errorList (detailed) over message (generic "Unsuccessful operation")
+          if (parsed.errorList && parsed.errorList.length > 0) {
+            friendlyMsg = parsed.errorList.join('. ');
+          } else {
+            friendlyMsg = parsed.message || friendlyMsg;
+          }
+        }
+      } catch (_) {}
+      res.json({ success: false, error: friendlyMsg });
     }
   });
 

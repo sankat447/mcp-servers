@@ -115,8 +115,15 @@ export class DcTrackClient extends BaseClient {
 
     const items = await this.getCabinetItems(cabinetId);
     const totalRu = Number(cabinet.ruHeight) || 42;
-    const usedRu = items.reduce((sum: number, item: any) => sum + (Number(item.tiRackUnits) || 0), 0);
+
+    // Only count racked items (skip ZeroU-mounted items like PDUs which span full cabinet)
+    const rackedItems = items.filter((item: any) => {
+      const mounting = (item.mounting || '').toLowerCase();
+      return mounting !== 'zerou' && mounting !== 'zero u';
+    });
+    const usedRu = rackedItems.reduce((sum: number, item: any) => sum + (Number(item.tiRackUnits) || 0), 0);
     const availableRu = totalRu - usedRu;
+    const zeroUItems = items.length - rackedItems.length;
 
     return {
       cabinetId,
@@ -126,7 +133,93 @@ export class DcTrackClient extends BaseClient {
       ratedPowerKw: 0,
       spaceUtilizationPercent: totalRu > 0 ? Math.round((usedRu / totalRu) * 100) : 0,
       installedItems: items.length,
+      rackedItems: rackedItems.length,
+      zeroUItems,
     } as any;
+  }
+
+  async getCabinetUMap(cabinetId: number): Promise<any> {
+    const cabinet = await this.getCabinet(cabinetId);
+    if (!cabinet) throw new Error(`Cabinet ${cabinetId} not found`);
+    const totalRu = Number(cabinet.ruHeight) || 42;
+    const cabinetName = (cabinet as any).tiName || String(cabinetId);
+
+    const items = await this.getCabinetItems(cabinetId);
+
+    // Build U-position map: for each racked item, mark the U positions it occupies
+    const uMap: Record<number, { item: string; class: string; make: string; model: string; mounting: string; side: string }> = {};
+    const zeroUList: Array<{ item: string; class: string; make: string; model: string; mounting: string }> = [];
+
+    for (const it of items as any[]) {
+      const mounting = it.mounting || '';
+      if (mounting.toLowerCase() === 'zerou' || mounting.toLowerCase() === 'zero u') {
+        zeroUList.push({
+          item: it.tiName || '?',
+          class: it.className || '?',
+          make: it.cmbMake || '',
+          model: it.cmbModel || '',
+          mounting,
+        });
+        continue;
+      }
+
+      const startU = Number(it.cmbUPosition) || 0;
+      const ruHeight = Number(it.tiRackUnits) || 1;
+      const railsUsed = it.radioRailsUsed || 'Both';
+      if (startU <= 0) continue;
+
+      for (let u = startU; u < startU + ruHeight && u <= totalRu; u++) {
+        uMap[u] = {
+          item: it.tiName || '?',
+          class: it.className || '?',
+          make: it.cmbMake || '',
+          model: it.cmbModel || '',
+          mounting,
+          side: railsUsed,
+        };
+      }
+    }
+
+    // Build ordered array from U1 to U(totalRu)
+    const positions = [];
+    let usedCount = 0;
+    for (let u = totalRu; u >= 1; u--) {
+      const occupied = uMap[u];
+      if (occupied) {
+        usedCount++;
+        positions.push({
+          uPosition: `U${u}`,
+          status: 'Occupied',
+          itemName: occupied.item,
+          class: occupied.class,
+          make: occupied.make,
+          model: occupied.model,
+          mounting: occupied.mounting,
+          side: occupied.side,
+        });
+      } else {
+        positions.push({
+          uPosition: `U${u}`,
+          status: 'Available',
+          itemName: '',
+          class: '',
+          make: '',
+          model: '',
+          mounting: '',
+          side: '',
+        });
+      }
+    }
+
+    return {
+      cabinetName,
+      cabinetId,
+      totalRu,
+      usedRu: usedCount,
+      availableRu: totalRu - usedCount,
+      zeroUItems: zeroUList,
+      positions,
+    };
   }
 
   async searchItems(params: {
@@ -209,10 +302,12 @@ export class DcTrackClient extends BaseClient {
   async listModels(params?: {
     class?: string;
     make?: string;
+    query?: string;
     pageSize?: number;
   }): Promise<DcTrackModel[]> {
     // No dedicated list endpoint — use quicksearch/models
     const columns: any[] = [];
+    if (params?.query) columns.push({ name: 'model', filter: { eq: params.query } });
     if (params?.class) columns.push({ name: 'class', filter: { eq: params.class } });
     if (params?.make) columns.push({ name: 'make', filter: { eq: params.make } });
     const pageSize = params?.pageSize ?? 100;
@@ -239,6 +334,9 @@ export class DcTrackClient extends BaseClient {
     tiClass: string;
     cmbLocation?: string;
     cabinetId?: number;
+    cabinetName?: string;
+    make?: string;
+    model?: string;
     tiUPosition?: number;
     tiMounting?: string;
     modelId?: number;
@@ -249,17 +347,64 @@ export class DcTrackClient extends BaseClient {
   }): Promise<DcTrackItem> {
     const payload: Record<string, any> = { tiName: item.tiName, tiClass: item.tiClass };
 
-    if (item.cmbLocation) payload.cmbLocation = item.cmbLocation;
-    if (item.cabinetId) payload.cmbCabinet = item.cabinetId;
+    // Make and Model — dcTrack requires these for most item classes
+    if (item.make) payload.cmbMake = item.make;
+    if (item.model) payload.cmbModel = item.model;
+    if (item.modelId) payload.cmbModel = item.modelId;
+
+    // Resolve cabinet: accept cabinetName (string) or cabinetId (number)
+    // dcTrack's cmbCabinet field expects the cabinet name string, not an ID
+    let resolvedCabinetName: string | undefined;
+    let resolvedLocation: string | undefined = item.cmbLocation;
+
+    if (item.cabinetName) {
+      resolvedCabinetName = item.cabinetName;
+      // If no location provided, resolve it from the cabinet
+      if (!resolvedLocation) {
+        try {
+          const results = await this.searchItems({ query: item.cabinetName, class: 'Cabinet', pageSize: 1 });
+          const found = results[0] as any;
+          if (found?.cmbLocation) resolvedLocation = found.cmbLocation;
+        } catch {}
+      }
+    } else if (item.cabinetId) {
+      try {
+        const cab = await this.getCabinet(item.cabinetId);
+        if (cab) {
+          resolvedCabinetName = (cab as any).tiName ?? String(item.cabinetId);
+          if (!resolvedLocation) resolvedLocation = (cab as any).cmbLocation;
+        }
+      } catch {
+        resolvedCabinetName = String(item.cabinetId);
+      }
+    }
+
+    if (resolvedLocation) payload.cmbLocation = resolvedLocation;
+    if (resolvedCabinetName) payload.cmbCabinet = resolvedCabinetName;
+
     if (item.tiUPosition) payload.tiUPosition = item.tiUPosition;
     if (item.tiMounting) payload.tiMounting = item.tiMounting;
-    if (item.modelId) payload.cmbModel = item.modelId;
     if (item.tiSerialNumber) payload.tiSerialNumber = item.tiSerialNumber;
     if (item.tiAssetTag) payload.tiAssetTag = item.tiAssetTag;
     if (item.cmbStatus) payload.cmbStatus = item.cmbStatus;
     if (item.customFields) Object.assign(payload, item.customFields);
 
+    logger.info({ itemName: item.tiName, payload }, 'Creating item');
     const res = await this.post<any>('/dcimoperations/items?returnDetails=true&proceedOnWarning=true', payload);
+
+    // Log the full response for debugging
+    logger.info({ itemName: item.tiName, response: JSON.stringify(res).substring(0, 1000) }, 'Create item response');
+
+    // dcTrack sometimes returns 200 with various error formats
+    if (res && res.success === false) {
+      const errMsg = res.message || (res.errorList && res.errorList[0]) || JSON.stringify(res).substring(0, 300);
+      throw new Error(`Failed to create item "${item.tiName}": ${errMsg}`);
+    }
+    // Also check for errorList without success:false
+    if (res && res.errorList && res.errorList.length > 0) {
+      throw new Error(`Failed to create item "${item.tiName}": ${res.errorList.join(', ')}`);
+    }
+
     logger.info({ itemName: item.tiName }, 'Item created');
     return res.item ?? res;
   }
@@ -475,7 +620,8 @@ export class DcTrackClient extends BaseClient {
 
   async createCabinet(cabinet: {
     name: string;
-    locationId: number;
+    locationId?: number;
+    locationName?: string;
     make?: string;
     model?: string;
     modelId?: number;
@@ -487,17 +633,52 @@ export class DcTrackClient extends BaseClient {
   }): Promise<DcTrackCabinet> {
     // Cabinets are created through the items API — there is no /dcimoperations/cabinets endpoint
     // Need full location path (e.g., "ORSTED > ROOM 01"), not just name
-    let locationName: string;
-    try {
-      const loc = await this.getLocation(cabinet.locationId);
-      locationName = (loc as any)?.tiLocationCode ?? (loc as any)?.cmbLocation ?? (loc as any)?.tiLocationName ?? (loc as any)?.name ?? String(cabinet.locationId);
-    } catch {
-      locationName = String(cabinet.locationId);
+    let locationPath: string | undefined;
+
+    // Resolve locationName to locationId if needed
+    let resolvedLocationId = cabinet.locationId;
+    if (!resolvedLocationId && cabinet.locationName) {
+      const locs = await this.listLocations();
+      const query = cabinet.locationName.toLowerCase().replace(/[-_\s]+/g, ' ').trim();
+      let match = locs.find((l: any) => {
+        const name = (l.tiLocationName || '').toLowerCase().replace(/[-_\s]+/g, ' ').trim();
+        return name === query;
+      });
+      if (!match) {
+        match = locs.find((l: any) => {
+          const code = (l.tiLocationCode || '').toLowerCase();
+          const lastSeg = code.split('>').pop()?.replace(/[-_\s]+/g, ' ').trim() || '';
+          return lastSeg === query;
+        });
+      }
+      if (!match) {
+        const candidates = locs.filter((l: any) =>
+          (l.tiLocationCode || '').toLowerCase().replace(/[-_\s]+/g, ' ').includes(query)
+        );
+        if (candidates.length === 1) match = candidates[0];
+      }
+      if (match) {
+        resolvedLocationId = Number(match.id);
+        locationPath = (match as any).tiLocationCode ?? (match as any).tiLocationName;
+      } else {
+        throw new Error(`Location "${cabinet.locationName}" not found`);
+      }
     }
+
+    if (!locationPath && resolvedLocationId) {
+      try {
+        const loc = await this.getLocation(resolvedLocationId);
+        locationPath = (loc as any)?.tiLocationCode ?? (loc as any)?.cmbLocation ?? (loc as any)?.tiLocationName ?? (loc as any)?.name ?? String(resolvedLocationId);
+      } catch {
+        locationPath = String(resolvedLocationId);
+      }
+    }
+
+    if (!locationPath) throw new Error('Either locationId or locationName is required');
 
     const payload: Record<string, any> = {
       tiName: cabinet.name,
-      cmbLocation: locationName,
+      cmbLocation: locationPath,
     };
     // Make & model by name — dcTrack resolves these to IDs internally
     if (cabinet.make) payload.cmbMake = cabinet.make;
@@ -763,11 +944,48 @@ export class DcTrackClient extends BaseClient {
 
   async findAvailableCabinets(params: {
     locationIds?: number[];
+    locationName?: string;
     minAvailableRUs?: number;
     minAvailablePowerKw?: number;
   }): Promise<any[]> {
-    // No reliable dedicated endpoint — compute from cabinet list + capacity
-    const cabinets = await this.listCabinets({ pageSize: 200 });
+    // Resolve locationName to locationId if provided
+    let locationId: number | undefined;
+    if (params.locationName) {
+      try {
+        const locs = await this.listLocations();
+        const query = params.locationName.toLowerCase().replace(/[-_\s]+/g, ' ').trim();
+
+        // Priority 1: exact match on tiLocationName (normalize spaces/hyphens)
+        let match = locs.find((l: any) => {
+          const name = (l.tiLocationName || '').toLowerCase().replace(/[-_\s]+/g, ' ').trim();
+          return name === query;
+        });
+
+        // Priority 2: match the last segment of tiLocationCode (the leaf location name)
+        if (!match) {
+          match = locs.find((l: any) => {
+            const code = (l.tiLocationCode || '').toLowerCase();
+            const lastSeg = code.split('>').pop()?.replace(/[-_\s]+/g, ' ').trim() || '';
+            return lastSeg === query;
+          });
+        }
+
+        // Priority 3: full code contains query (fallback, but only if single match)
+        if (!match) {
+          const candidates = locs.filter((l: any) =>
+            (l.tiLocationCode || '').toLowerCase().replace(/[-_\s]+/g, ' ').includes(query)
+          );
+          if (candidates.length === 1) match = candidates[0];
+        }
+
+        if (match) locationId = Number(match.id);
+      } catch {}
+    } else if (params.locationIds && params.locationIds.length > 0) {
+      locationId = params.locationIds[0];
+    }
+
+    // Fetch cabinets filtered by location if available
+    const cabinets = await this.listCabinets({ locationId, pageSize: 200 });
     const results: any[] = [];
     for (const cab of cabinets) {
       const cap = await this.getCabinetCapacity(Number(cab.id));

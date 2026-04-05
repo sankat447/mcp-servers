@@ -66,6 +66,17 @@ What items are installed in cabinet 178B-02?
 Show me all devices in cabinet 178B-01
 ```
 
+### dctrack_get_cabinet_u_map
+```
+Show me the U-position map for cabinet 178B-02
+```
+```
+Show all U slots in cabinet 178B-02
+```
+```
+Which U positions are occupied in cabinet 178B-01?
+```
+
 ### dctrack_get_cabinet_capacity
 ```
 What space is available in cabinet 178B-02?
@@ -227,6 +238,12 @@ Show models from manufacturer Dell
 ```
 ```
 List all models with class "Device"
+```
+```
+List all models with C6100 in the name
+```
+```
+Search for models matching "PowerEdge"
 ```
 
 ### dctrack_get_model
@@ -748,10 +765,12 @@ Run these prompts in order to quickly validate the core dcTrack tools work:
 1. `List all locations in dcTrack`
 2. `List all cabinets`
 3. `Show me all items in cabinet 178B-02`
-4. `What space is available in cabinet 178B-02?`
-5. `List all manufacturers`
-6. `List all equipment models`
-7. `Search for all devices in AI-ROOM-01`
-8. `Show me the power chain for location AI-ROOM-01`
-9. `List all custom fields`
-10. `Show the audit trail for the last 24 hours`
+4. `Show me the U-position map for cabinet 178B-02`
+5. `What space is available in cabinet 178B-02?`
+6. `List all manufacturers`
+7. `List all models with C6100 in the name`
+8. `List all equipment models`
+9. `Search for all devices in AI-ROOM-01`
+10. `Show me the power chain for location AI-ROOM-01`
+11. `List all custom fields`
+12. `Show the audit trail for the last 24 hours`

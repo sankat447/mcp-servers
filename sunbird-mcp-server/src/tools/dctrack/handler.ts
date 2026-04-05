@@ -46,8 +46,31 @@ export async function handleDcTrackReadTool(
     case 'dctrack_get_cabinet':
       return dctrackClient.getCabinet(schemas.getCabinetSchema.parse(args).cabinetId);
 
-    case 'dctrack_get_cabinet_items':
-      return dctrackClient.getCabinetItems(schemas.getCabinetItemsSchema.parse(args).cabinetId);
+    case 'dctrack_get_cabinet_items': {
+      const cabArgs = schemas.getCabinetItemsSchema.parse(args);
+      let cabItemsId = cabArgs.cabinetId;
+      if (!cabItemsId && cabArgs.cabinetName) {
+        const results = await dctrackClient.searchItems({ query: cabArgs.cabinetName, class: 'Cabinet', pageSize: 1 });
+        const found = results[0] as any;
+        if (found?.id) cabItemsId = Number(found.id);
+        else throw new Error(`Cabinet "${cabArgs.cabinetName}" not found`);
+      }
+      if (!cabItemsId) throw new Error('Either cabinetId or cabinetName is required');
+      return dctrackClient.getCabinetItems(cabItemsId);
+    }
+
+    case 'dctrack_get_cabinet_u_map': {
+      const uMapArgs = schemas.getCabinetUMapSchema.parse(args);
+      let uMapCabId = uMapArgs.cabinetId;
+      if (!uMapCabId && uMapArgs.cabinetName) {
+        const results = await dctrackClient.searchItems({ query: uMapArgs.cabinetName, class: 'Cabinet', pageSize: 1 });
+        const found = results[0] as any;
+        if (found?.id) uMapCabId = Number(found.id);
+        else throw new Error(`Cabinet "${uMapArgs.cabinetName}" not found`);
+      }
+      if (!uMapCabId) throw new Error('Either cabinetId or cabinetName is required');
+      return dctrackClient.getCabinetUMap(uMapCabId);
+    }
 
     case 'dctrack_get_cabinet_capacity': {
       const cap = schemas.getCabinetCapacitySchema.parse(args);

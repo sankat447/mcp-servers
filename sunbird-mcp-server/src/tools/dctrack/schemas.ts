@@ -27,7 +27,13 @@ export const getCabinetSchema = z.object({
 });
 
 export const getCabinetItemsSchema = z.object({
-  cabinetId: z.number().describe('The unique identifier of the cabinet'),
+  cabinetId: z.number().optional().describe('The unique identifier of the cabinet'),
+  cabinetName: z.string().optional().describe('Cabinet name (e.g., "178B-02") — will resolve to cabinetId automatically'),
+});
+
+export const getCabinetUMapSchema = z.object({
+  cabinetId: z.number().optional().describe('The unique identifier of the cabinet'),
+  cabinetName: z.string().optional().describe('Cabinet name (e.g., "178B-02") — will resolve to cabinetId automatically'),
 });
 
 export const getCabinetCapacitySchema = z.object({
@@ -64,6 +70,7 @@ export const getConnectionSchema = z.object({
 });
 
 export const listModelsSchema = z.object({
+  query: z.string().optional().describe('Search model name (partial match, e.g. "C6100")'),
   class: z.string().optional().describe('Filter by model class'),
   make: z.string().optional().describe('Filter by manufacturer'),
   pageSize: z.number().default(100).describe('Number of results per page'),

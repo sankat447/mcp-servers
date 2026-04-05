@@ -11,10 +11,13 @@ export const dctrackWriteToolDefinitions = [
       properties: {
         tiName: { type: 'string', description: 'Item name (required)' },
         tiClass: { type: 'string', description: 'Item class: Device, Network, Rack PDU, CRAC, UPS, etc.' },
-        cmbLocation: { type: 'string', description: 'Location path (e.g., "DC1/Room1/Row1")' },
-        cabinetId: { type: 'number', description: 'Cabinet ID to place item in' },
+        cmbLocation: { type: 'string', description: 'Location path (e.g., "AI-DEMO-DC > AI-ROOM-01")' },
+        cabinetName: { type: 'string', description: 'Cabinet name (e.g., "AI-CAB-01") — preferred over cabinetId' },
+        cabinetId: { type: 'number', description: 'Cabinet ID (numeric) — use cabinetName instead when possible' },
+        make: { type: 'string', description: 'Manufacturer name (e.g., "APC", "Rittal") — required by dcTrack' },
+        model: { type: 'string', description: 'Model name (e.g., "AP8861") — required by dcTrack' },
         tiUPosition: { type: 'number', description: 'U position in cabinet (bottom of item)' },
-        tiMounting: { type: 'string', enum: ['Front', 'Rear', 'ZeroU'], description: 'Mounting position' },
+        tiMounting: { type: 'string', enum: ['Front', 'Rear', 'ZeroU'], description: 'Mounting position — use ZeroU for PDUs' },
         modelId: { type: 'number', description: 'Model ID from model library' },
         tiSerialNumber: { type: 'string', description: 'Serial number' },
         tiAssetTag: { type: 'string', description: 'Asset tag' },
@@ -146,12 +149,13 @@ export const dctrackWriteToolDefinitions = [
   },
   {
     name: 'dctrack_create_cabinet',
-    description: 'Create a new cabinet/rack in dcTrack. Provide make and model by name (e.g., "Rittal", "Orsted VX5311.116") — they are required by dcTrack.',
+    description: 'Create a new cabinet/rack in dcTrack. Use locationName (preferred) or locationId. Provide make and model by name.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         name: { type: 'string', description: 'Cabinet name (e.g., "AI-CAB-01")' },
-        locationId: { type: 'number', description: 'Location ID (e.g., 8 for AI-ROOM-01)' },
+        locationName: { type: 'string', description: 'Location name (e.g., "AI-ROOM-01") — preferred, auto-resolves' },
+        locationId: { type: 'number', description: 'Location ID (numeric) — use locationName instead when possible' },
         make: { type: 'string', description: 'Manufacturer name (e.g., "Rittal") — required by dcTrack' },
         model: { type: 'string', description: 'Model name (e.g., "Orsted VX5311.116") — required by dcTrack' },
         ruHeight: { type: 'number', default: 42 },
@@ -159,7 +163,7 @@ export const dctrackWriteToolDefinitions = [
         rowPosition: { type: 'number' },
         customFields: { type: 'object' },
       },
-      required: ['name', 'locationId', 'make', 'model'],
+      required: ['name', 'make', 'model'],
     },
   },
   {

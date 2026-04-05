@@ -16,6 +16,7 @@ const updatePortReadingsSchema = z.object({ portId: z.number(), readings: z.reco
 const powerSumSchema = z.object({ itemIds: z.array(z.number()) });
 const findCabinetsSchema = z.object({
   locationIds: z.array(z.number()).optional(),
+  locationName: z.string().optional().describe('Location name (e.g., "AI-ROOM-01") — preferred over locationIds'),
   minAvailableRUs: z.number().optional(),
   minAvailablePowerKw: z.number().optional(),
 });

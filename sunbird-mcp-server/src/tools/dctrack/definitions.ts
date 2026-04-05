@@ -58,13 +58,26 @@ export const dctrackReadToolDefinitions = [
   },
   {
     name: 'dctrack_get_cabinet_items',
-    description: 'Get all items installed in a cabinet',
+    description: 'Get all items installed in a cabinet. Provide cabinetName (preferred) or cabinetId.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         cabinetId: { type: 'number', description: 'The unique identifier of the cabinet' },
+        cabinetName: { type: 'string', description: 'Cabinet name (e.g., "178B-02") — preferred, auto-resolves to ID' },
       },
-      required: ['cabinetId'],
+      required: [],
+    },
+  },
+  {
+    name: 'dctrack_get_cabinet_u_map',
+    description: 'Get a full U-position map for a cabinet showing every U slot (U1 to U42/U48 etc.) and whether it is Occupied or Available, with item details. Use this to visualize rack layout.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        cabinetId: { type: 'number', description: 'The numeric ID of the cabinet' },
+        cabinetName: { type: 'string', description: 'Cabinet name (e.g., "178B-02") — preferred, auto-resolves to ID' },
+      },
+      required: [],
     },
   },
   {
@@ -138,10 +151,11 @@ export const dctrackReadToolDefinitions = [
   },
   {
     name: 'dctrack_list_models',
-    description: 'List equipment models from the dcTrack model library',
+    description: 'List/search equipment models from the dcTrack model library. Use query to search by model name.',
     inputSchema: {
       type: 'object' as const,
       properties: {
+        query: { type: 'string', description: 'Search model name (partial match, e.g. "C6100")' },
         class: { type: 'string', description: 'Filter by model class' },
         make: { type: 'string', description: 'Filter by manufacturer' },
         pageSize: { type: 'number', description: 'Number of results per page', default: 100 },

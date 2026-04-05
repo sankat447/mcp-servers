@@ -60,10 +60,11 @@ export const dctrackPowerToolDefinitions = [
   },
   {
     name: 'dctrack_find_available_cabinets',
-    description: 'Find cabinets with available space matching RU and power requirements',
+    description: 'Find cabinets with available space matching RU and power requirements. Use locationName to filter by location.',
     inputSchema: {
       type: 'object' as const,
       properties: {
+        locationName: { type: 'string', description: 'Location name (e.g., "AI-ROOM-01") — preferred over locationIds' },
         locationIds: { type: 'array', items: { type: 'number' }, description: 'Location IDs to search within' },
         minAvailableRUs: { type: 'number', description: 'Minimum available rack units needed' },
         minAvailablePowerKw: { type: 'number', description: 'Minimum available power in kW' },
