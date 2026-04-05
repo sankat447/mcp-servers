@@ -21,7 +21,8 @@ export const dctrackProjectsToolDefinitions = [
       type: 'object' as const,
       properties: {
         projectName: { type: 'string', description: 'Project name' },
-        projectNumber: { type: 'string', description: 'Project number (optional)' },
+        projectNumber: { type: 'string', description: 'Project number (optional, auto-generated if omitted)' },
+        location: { type: 'string', description: 'Location name (e.g., "ORSTED") - required by dcTrack' },
         description: { type: 'string', description: 'Project description (optional)' },
         status: { type: 'string', description: 'Project status (optional)' },
         startDate: { type: 'string', description: 'Project start date (optional)' },

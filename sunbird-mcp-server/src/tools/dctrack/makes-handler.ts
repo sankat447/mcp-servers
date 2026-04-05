@@ -21,10 +21,11 @@ const deleteMakeSchema = z.object({ makeId: z.number() });
 const searchMakesSchema = z.object({ searchString: z.string() });
 const createModelSchema = z.object({
   model: z.string(), make: z.string(), class: z.string(),
+  subclass: z.string().optional(),
   mounting: z.string().optional(), formFactor: z.string().optional(),
   ruHeight: z.number().optional(), dimHeight: z.number().optional(),
   dimWidth: z.number().optional(), dimDepth: z.number().optional(), weight: z.number().optional(),
-});
+}).passthrough();
 const updateModelSchema = z.object({ modelId: z.number(), model: z.record(z.any()) });
 const deleteModelSchema = z.object({ modelId: z.number() });
 const searchModelsSchema = z.object({

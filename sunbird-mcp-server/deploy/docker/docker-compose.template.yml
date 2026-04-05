@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  sunbird-mcp:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: sunbird-mcp-server:latest
+    container_name: sunbird-mcp-server
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - MCP_PORT=8080
+      - MCP_HOST=0.0.0.0
+      - MCP_SERVER_NAME=sunbird-dcim-mcp
+      - SUNBIRD_BASE_URL=__SUNBIRD_BASE_URL__
+      - SUNBIRD_USERNAME=__SUNBIRD_USERNAME__
+      - SUNBIRD_PASSWORD=__SUNBIRD_PASSWORD__
+      - SUNBIRD_TIMEOUT=30000
+      - SUNBIRD_REJECT_UNAUTHORIZED=false
+      - CACHE_ENABLED=true
+      - CACHE_TTL_SECONDS=60
+      - LOG_LEVEL=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - dcim-network
+
+networks:
+  dcim-network:
+    driver: bridge

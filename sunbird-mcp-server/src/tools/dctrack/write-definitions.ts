@@ -146,19 +146,20 @@ export const dctrackWriteToolDefinitions = [
   },
   {
     name: 'dctrack_create_cabinet',
-    description: 'Create a new cabinet/rack in dcTrack',
+    description: 'Create a new cabinet/rack in dcTrack. Provide make and model by name (e.g., "Rittal", "Orsted VX5311.116") — they are required by dcTrack.',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        name: { type: 'string' },
-        locationId: { type: 'number' },
-        modelId: { type: 'number' },
+        name: { type: 'string', description: 'Cabinet name (e.g., "AI-CAB-01")' },
+        locationId: { type: 'number', description: 'Location ID (e.g., 8 for AI-ROOM-01)' },
+        make: { type: 'string', description: 'Manufacturer name (e.g., "Rittal") — required by dcTrack' },
+        model: { type: 'string', description: 'Model name (e.g., "Orsted VX5311.116") — required by dcTrack' },
         ruHeight: { type: 'number', default: 42 },
         ratedPowerKw: { type: 'number' },
         rowPosition: { type: 'number' },
         customFields: { type: 'object' },
       },
-      required: ['name', 'locationId'],
+      required: ['name', 'locationId', 'make', 'model'],
     },
   },
   {

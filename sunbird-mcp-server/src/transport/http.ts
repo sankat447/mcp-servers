@@ -38,10 +38,15 @@ export function createHTTPServer() {
   // Tool discovery
   // -----------------------------------------------------------------------
 
-  app.get('/tools', (_req: Request, res: Response) => {
-    res.json({
-      tools: allToolDefinitions.map((t) => ({ name: t.name, description: t.description })),
-    });
+  app.get('/tools', (req: Request, res: Response) => {
+    const detail = req.query.detail;
+    if (detail === 'full') {
+      res.json({ tools: allToolDefinitions });
+    } else {
+      res.json({
+        tools: allToolDefinitions.map((t) => ({ name: t.name, description: t.description })),
+      });
+    }
   });
 
   // -----------------------------------------------------------------------
@@ -128,7 +133,7 @@ export function createHTTPServer() {
     logger.info({ tool: toolName, args: req.body }, 'Direct tool call');
 
     try {
-      const result = await handleToolCall(toolName, req.body);
+      const result = await handleToolCall(toolName as string, req.body as Record<string, any>);
       res.json({ success: true, result });
     } catch (error: any) {
       logger.error({ tool: toolName, error: error.message }, 'Direct tool call failed');

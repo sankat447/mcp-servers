@@ -72,6 +72,7 @@ export const dctrackMakesToolDefinitions = [
         model: { type: 'string', description: 'Model name' },
         make: { type: 'string', description: 'Manufacturer name' },
         class: { type: 'string', description: 'Model class (Device, Network, RackPDU, Cabinet, etc.)' },
+        subclass: { type: 'string', description: 'Model subclass (e.g., "Network Stack", "BladeChassis", "Server") - required' },
         mounting: { type: 'string', enum: ['Rackable', 'Non-Rackable', 'Free-Standing'], description: 'Mounting type' },
         formFactor: { type: 'string', enum: ['Fixed', 'Chassis', 'Blade'], description: 'Form factor' },
         ruHeight: { type: 'number', description: 'Height in rack units' },

@@ -1,0 +1,247 @@
+---
+# =============================================================================
+# Sunbird MCP Server — OpenShift Deployment Template
+# =============================================================================
+# USAGE:
+#   1. Copy this file:  cp deployment.template.yaml deployment.yaml
+#   2. Fill in your credentials in the Secret section below
+#   3. Apply:  oc apply -f deployment.yaml
+#
+# DO NOT commit deployment.yaml — it contains real credentials.
+# Only this template (deployment.template.yaml) is version-controlled.
+# =============================================================================
+
+# Secret for Sunbird credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sunbird-credentials
+  namespace: aitp-ai
+  labels:
+    app: sunbird-mcp-server
+type: Opaque
+stringData:
+  SUNBIRD_BASE_URL: "__SUNBIRD_BASE_URL__"
+  DCTRACK_BASE_URL: "__DCTRACK_BASE_URL__"
+  POWERIQ_BASE_URL: "__POWERIQ_BASE_URL__"
+  SUNBIRD_USERNAME: "__SUNBIRD_USERNAME__"
+  SUNBIRD_PASSWORD: "__SUNBIRD_PASSWORD__"
+
+---
+# ConfigMap for non-sensitive configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sunbird-mcp-config
+  namespace: aitp-ai
+  labels:
+    app: sunbird-mcp-server
+data:
+  MCP_PORT: "8080"
+  MCP_HOST: "0.0.0.0"
+  MCP_SERVER_NAME: "sunbird-dcim-mcp"
+  SUNBIRD_TIMEOUT: "30000"
+  SUNBIRD_REJECT_UNAUTHORIZED: "false"
+  CACHE_ENABLED: "true"
+  CACHE_TTL_SECONDS: "60"
+  LOG_LEVEL: "info"
+  NODE_ENV: "production"
+
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sunbird-mcp-server
+  namespace: aitp-ai
+  labels:
+    app: sunbird-mcp-server
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sunbird-mcp-server
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: sunbird-mcp-server
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: default
+      containers:
+        - name: mcp-server
+          image: image-registry.openshift-image-registry.svc:5000/aitp-ai/sunbird-mcp-server:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: sunbird-credentials
+            - configMapRef:
+                name: sunbird-mcp-config
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: sunbird-mcp-server
+  namespace: aitp-ai
+  labels:
+    app: sunbird-mcp-server
+spec:
+  type: ClusterIP
+  selector:
+    app: sunbird-mcp-server
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+
+---
+# Route (OpenShift specific)
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: sunbird-mcp
+  namespace: aitp-ai
+  labels:
+    app: sunbird-mcp-server
+spec:
+  host: sunbird-mcp.apps.ocp419.crucible.iisl.com
+  to:
+    kind: Service
+    name: sunbird-mcp-server
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+
+---
+# HorizontalPodAutoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: sunbird-mcp-server-hpa
+  namespace: aitp-ai
+  labels:
+    app: sunbird-mcp-server
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sunbird-mcp-server
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+---
+# NetworkPolicy to restrict access
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sunbird-mcp-network-policy
+  namespace: aitp-ai
+spec:
+  podSelector:
+    matchLabels:
+      app: sunbird-mcp-server
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: aitp-ai
+      ports:
+        - port: 8080
+          protocol: TCP
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: aitp-ui
+      ports:
+        - port: 8080
+          protocol: TCP
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-ingress
+      ports:
+        - port: 8080
+          protocol: TCP
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 192.168.200.201/32
+      ports:
+        - port: 443
+          protocol: TCP
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP

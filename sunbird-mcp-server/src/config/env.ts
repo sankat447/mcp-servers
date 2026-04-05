@@ -16,7 +16,7 @@ const EnvSchema = z.object({
   MCP_PORT: z.coerce.number().int().positive().default(8080),
   MCP_HOST: z.string().default('0.0.0.0'),
 
-  // Sunbird connection
+  // Sunbird connection (shared defaults)
   SUNBIRD_BASE_URL: z.string().url().default('https://192.168.200.201'),
   SUNBIRD_USERNAME: z.string().default('API'),
   SUNBIRD_PASSWORD: z.string().min(1),
@@ -25,6 +25,10 @@ const EnvSchema = z.object({
     .enum(['true', 'false'])
     .transform((v) => v === 'true')
     .default('false'),
+
+  // Separate URLs (override SUNBIRD_BASE_URL per product)
+  DCTRACK_BASE_URL: z.string().url().optional(),
+  POWERIQ_BASE_URL: z.string().url().optional(),
 
   // Cache
   CACHE_ENABLED: z

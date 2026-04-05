@@ -19,7 +19,8 @@ const transport = config.isDev
     }
   : undefined; // plain JSON in production (12-factor friendly)
 
-export const logger = pino({
+// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+export const logger = (pino as any)({
   level: config.logging.level,
   ...(transport ? { transport } : {}),
 });

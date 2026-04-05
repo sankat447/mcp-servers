@@ -23,7 +23,7 @@ export abstract class BaseClient {
   protected readonly cache: ResponseCache;
   protected readonly serviceName: string;
 
-  constructor(serviceName: string, basePath = '') {
+  constructor(serviceName: string, basePath = '', baseUrlOverride?: string) {
     this.serviceName = serviceName;
     this.cache = new ResponseCache(serviceName);
 
@@ -31,8 +31,10 @@ export abstract class BaseClient {
       rejectUnauthorized: config.sunbird.rejectUnauthorized,
     });
 
+    const baseUrl = baseUrlOverride ?? config.sunbird.baseUrl;
+
     this.http = axios.create({
-      baseURL: `${config.sunbird.baseUrl}${basePath}`,
+      baseURL: `${baseUrl}${basePath}`,
       timeout: config.sunbird.timeout,
       httpsAgent,
       auth: {
@@ -95,9 +97,11 @@ export abstract class BaseClient {
           );
         }
 
+        const responseBody = error.response?.data;
+        const detail = responseBody ? ` — ${JSON.stringify(responseBody).slice(0, 500)}` : '';
         return Promise.reject(
           new SunbirdApiError(
-            `API error from ${this.serviceName}: ${error.message}`,
+            `API error from ${this.serviceName}: ${error.message}${detail}`,
             status,
             error,
           ),

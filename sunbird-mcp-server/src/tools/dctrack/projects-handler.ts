@@ -13,12 +13,13 @@ const getProjectSchema = z.object({ projectId: z.number() });
 const createProjectSchema = z.object({
   projectName: z.string(),
   projectNumber: z.string().optional(),
+  location: z.string().optional().describe('Location name for the project'),
   description: z.string().optional(),
   status: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   projectManager: z.string().optional(),
-});
+}).passthrough();
 const updateProjectSchema = z.object({ projectId: z.number(), updates: z.record(z.any()) });
 const deleteProjectSchema = z.object({ projectId: z.number() });
 
@@ -32,8 +33,14 @@ export async function handleDcTrackProjectsTool(
     case 'dctrack_get_project':
       return dctrackClient.getProject(getProjectSchema.parse(args).projectId);
 
-    case 'dctrack_create_project':
-      return dctrackClient.createProject(createProjectSchema.parse(args));
+    case 'dctrack_create_project': {
+      const proj = createProjectSchema.parse(args);
+      // dcTrack requires projectNumber — auto-generate if not provided
+      if (!proj.projectNumber) {
+        proj.projectNumber = `PRJ-${Date.now()}`;
+      }
+      return dctrackClient.createProject(proj);
+    }
 
     case 'dctrack_update_project': {
       const p = updateProjectSchema.parse(args);

@@ -81,8 +81,22 @@ export async function handleDcTrackAdminTool(
     case 'dctrack_get_custom_field':
       return dctrackClient.getCustomField(getCustomFieldSchema.parse(args).customFieldId);
 
-    case 'dctrack_create_custom_field':
-      return dctrackClient.createCustomField(createCustomFieldSchema.parse(args));
+    case 'dctrack_create_custom_field': {
+      const cf = createCustomFieldSchema.parse(args);
+      // dcTrack custom fields API requires a nested format
+      const cfPayload: Record<string, any> = {
+        tiLabel: { label: 'Label', value: cf.label, editable: true },
+        tiType: {
+          label: 'Type',
+          value: { id: cf.fieldType === 'Number' ? 91015 : 91016, value: cf.fieldType },
+          editable: false,
+        },
+      };
+      if (cf.appliedTo) {
+        cfPayload.cmbClass = { label: 'Class', value: [cf.appliedTo], editable: true };
+      }
+      return dctrackClient.createCustomField(cfPayload);
+    }
 
     case 'dctrack_update_custom_field': {
       const p = updateCustomFieldSchema.parse(args);

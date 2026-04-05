@@ -14,22 +14,25 @@ import * as schemas from './schemas.js';
 
 export async function getRackSummary(args: { cabinetId?: number; cabinetName?: string }) {
   let cabinet: any;
+  let cabinetId: number | undefined;
 
   if (args.cabinetId) {
     cabinet = await dctrackClient.getCabinet(args.cabinetId);
+    cabinetId = args.cabinetId;
   } else if (args.cabinetName) {
     const cabinets = await dctrackClient.listCabinets({});
-    cabinet = cabinets.find((c) => c.name.toLowerCase() === args.cabinetName!.toLowerCase());
+    cabinet = cabinets.find((c: any) => (c.tiName ?? c.name ?? '').toLowerCase() === args.cabinetName!.toLowerCase());
+    if (cabinet) cabinetId = Number(cabinet.id);
   }
 
-  if (!cabinet) throw new Error('Cabinet not found');
+  if (!cabinet || !cabinetId) throw new Error('Cabinet not found');
 
   const [items, capacity] = await Promise.all([
-    dctrackClient.getCabinetItems(cabinet.id),
-    dctrackClient.getCabinetCapacity(cabinet.id),
+    dctrackClient.getCabinetItems(cabinetId),
+    dctrackClient.getCabinetCapacity(cabinetId),
   ]);
 
-  const pdus = await poweriqClient.listPDUs({ cabinetId: cabinet.id });
+  const pdus = await poweriqClient.listPDUs({ cabinetId });
   const pduReadings = await Promise.all(
     pdus.map(async (pdu) => ({
       pdu,
@@ -37,7 +40,7 @@ export async function getRackSummary(args: { cabinetId?: number; cabinetName?: s
     })),
   );
 
-  const sensorReadings = await poweriqClient.getCabinetSensorReadings(cabinet.id);
+  const sensorReadings = await poweriqClient.getCabinetSensorReadings(cabinetId);
 
   const totalPowerKw = pduReadings.reduce(
     (sum, pr) => sum + ((pr.readings?.activePower ?? 0) / 1000),
@@ -51,7 +54,7 @@ export async function getRackSummary(args: { cabinetId?: number; cabinetName?: s
       : null;
 
   return {
-    cabinet: { id: cabinet.id, name: cabinet.name, location: cabinet.locationName, ruHeight: cabinet.ruHeight },
+    cabinet: { id: cabinetId, name: cabinet.tiName ?? cabinet.name, location: cabinet.cmbLocation ?? cabinet.locationName, ruHeight: cabinet.tiRUs ?? cabinet.ruHeight },
     capacity: {
       space: {
         total: capacity?.totalRu ?? cabinet.ruHeight,
@@ -96,18 +99,20 @@ export async function findCapacity(params: z.infer<typeof schemas.findCapacitySc
   const available: any[] = [];
 
   for (const cab of cabinets) {
-    const cap = await dctrackClient.getCabinetCapacity(cab.id);
+    const cabId = Number((cab as any).id);
+    const cap = await dctrackClient.getCabinetCapacity(cabId);
     if (!cap) continue;
 
-    const availU = cap.availableRu ?? cab.ruHeight - (cab.usedRuCount ?? 0);
+    const ruHeight = Number((cab as any).tiRUs ?? (cab as any).ruHeight ?? 42);
+    const availU = cap.availableRu ?? ruHeight - (cap.usedRu ?? 0);
     const availPwr = cap.availablePowerKw ?? (cap.ratedPowerKw ?? 0) - (cap.actualPowerKw ?? 0);
 
     if (availU >= params.requiredU && availPwr >= params.requiredPowerKw) {
       const uFit = 1 - Math.abs(availU - params.requiredU) / Math.max(availU, params.requiredU);
-      const pFit = 1 - Math.abs(availPwr - params.requiredPowerKw) / Math.max(availPwr, params.requiredPowerKw);
+      const pFit = params.requiredPowerKw > 0 ? 1 - Math.abs(availPwr - params.requiredPowerKw) / Math.max(availPwr, params.requiredPowerKw) : 1;
 
       available.push({
-        cabinetId: cab.id, cabinetName: cab.name, location: cab.locationName,
+        cabinetId: cabId, cabinetName: (cab as any).tiName ?? (cab as any).name, location: (cab as any).cmbLocation ?? (cab as any).locationName,
         availableU: availU, availablePowerKw: availPwr,
         spaceUtilization: cap.spaceUtilizationPercent,
         powerUtilization: cap.powerUtilizationPercent,
@@ -158,7 +163,8 @@ export async function getHealthStatus(params: z.infer<typeof schemas.getHealthSt
   if (params.includePUE) {
     const pue = await poweriqClient.getPUE({ datacenterId: params.locationId });
     if (pue.length > 0) {
-      results.pue = { current: pue[0].pue, itPowerKw: pue[0].itPowerKw, facilityPowerKw: pue[0].facilityPowerKw };
+      const first = pue[0]!;
+      results.pue = { current: first.pue, itPowerKw: first.itPowerKw, facilityPowerKw: first.facilityPowerKw };
     }
   }
 

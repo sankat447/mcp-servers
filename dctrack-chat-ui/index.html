@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sunbird AI Assistant | DCIM Intelligence Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Sunbird Brand Colors */
+            --sunbird-orange: #F7941D;
+            --sunbird-orange-light: #FFAD4A;
+            --sunbird-orange-dark: #E07D00;
+            --sunbird-amber: #FFC107;
+
+            /* IISL Corporate Colors */
+            --iisl-blue: #1E3A5F;
+            --iisl-blue-light: #2C5282;
+            --iisl-blue-dark: #0F2439;
+
+            /* Neutral Palette */
+            --bg-primary: #0A0E14;
+            --bg-secondary: #111821;
+            --bg-tertiary: #1A2332;
+            --bg-card: #151D2B;
+            --bg-hover: #1F2A3C;
+
+            --text-primary: #F0F4F8;
+            --text-secondary: #A0AEC0;
+            --text-muted: #718096;
+
+            /* Accents */
+            --success: #48BB78;
+            --error: #FC8181;
+            --blue: #63B3ED;
+            --purple: #B794F4;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-highlight: rgba(247, 148, 29, 0.3);
+
+            /* Shadows */
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
+            --shadow-glow: 0 0 30px rgba(247, 148, 29, 0.12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            line-height: 1.6;
+        }
+
+        /* ─── Animated Background ─── */
+        .bg-pattern {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none; z-index: 0; overflow: hidden;
+        }
+        .bg-pattern::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(247,148,29,0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(30,58,95,0.10) 0%, transparent 50%);
+            animation: bgShift 30s ease-in-out infinite;
+        }
+        @keyframes bgShift {
+            0%, 100% { transform: translate(0,0) rotate(0deg); }
+            33% { transform: translate(-3%,3%) rotate(1deg); }
+            66% { transform: translate(3%,-3%) rotate(-1deg); }
+        }
+
+        /* ─── Header ─── */
+        .header {
+            position: relative; z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            height: 56px;
+            background: linear-gradient(180deg, var(--bg-secondary) 0%, rgba(17,24,33,0.95) 100%);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .header-left {
+            display: flex; align-items: center; gap: 14px;
+        }
+
+        .logo-icon {
+            width: 38px; height: 38px;
+            background: linear-gradient(135deg, var(--sunbird-orange) 0%, var(--sunbird-orange-dark) 100%);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: var(--shadow-glow);
+        }
+        .logo-icon svg { width: 22px; height: 22px; fill: white; }
+
+        .logo-text { display: flex; flex-direction: column; }
+        .logo-title {
+            font-size: 1.05rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.02em;
+        }
+        .logo-subtitle {
+            font-size: 0.65rem; color: var(--sunbird-orange); font-weight: 500;
+            text-transform: uppercase; letter-spacing: 0.1em;
+        }
+
+        .header-right {
+            display: flex; align-items: center; gap: 16px;
+        }
+
+        .company-badge {
+            display: flex; align-items: center; gap: 10px;
+            padding: 6px 14px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        .company-badge svg { width: 20px; height: 20px; flex-shrink: 0; }
+        .company-info { display: flex; flex-direction: column; }
+        .company-name {
+            font-size: 0.6rem; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .company-full { font-size: 0.75rem; color: var(--text-secondary); font-weight: 500; }
+
+        .status-pill {
+            display: flex; align-items: center; gap: 6px;
+            padding: 5px 12px;
+            background: var(--bg-tertiary);
+            border-radius: 20px;
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+        .status-dot {
+            width: 6px; height: 6px; border-radius: 50%; background: var(--success);
+        }
+        .status-dot.offline { background: var(--error); }
+
+        /* ─── Main Layout — Split Pane ─── */
+        .main-layout {
+            position: relative; z-index: 10;
+            flex: 1; display: flex; overflow: hidden;
+        }
+
+        /* ─── Left Pane: Chat ─── */
+        .chat-pane {
+            width: 440px; min-width: 340px;
+            display: flex; flex-direction: column;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .pane-header {
+            padding: 12px 18px;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .pane-header-title {
+            font-size: 0.75rem; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.06em;
+        }
+        .pane-header-btn {
+            background: none; border: 1px solid var(--border); border-radius: 6px;
+            color: var(--text-muted); font-size: 0.68rem; padding: 4px 10px;
+            cursor: pointer; font-family: inherit;
+        }
+        .pane-header-btn:hover { border-color: var(--border-highlight); color: var(--text-secondary); }
+
+        /* Messages */
+        .messages {
+            flex: 1; overflow-y: auto; padding: 16px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        .messages::-webkit-scrollbar { width: 4px; }
+        .messages::-webkit-scrollbar-track { background: transparent; }
+        .messages::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 2px; }
+
+        .message { display: flex; gap: 10px; animation: msgIn 0.25s ease-out; }
+        @keyframes msgIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message.user { flex-direction: row-reverse; }
+
+        .avatar {
+            width: 32px; height: 32px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.65rem; font-weight: 600; flex-shrink: 0;
+        }
+        .message.user .avatar { background: var(--iisl-blue); color: white; }
+        .message.assistant .avatar {
+            background: linear-gradient(135deg, var(--sunbird-orange), var(--sunbird-orange-dark)); color: white;
+        }
+
+        .msg-body { max-width: 85%; display: flex; flex-direction: column; gap: 4px; }
+
+        .msg-text {
+            padding: 10px 14px; border-radius: 14px;
+            font-size: 0.85rem; line-height: 1.6;
+        }
+        .message.user .msg-text {
+            background: linear-gradient(135deg, var(--iisl-blue), var(--iisl-blue-dark));
+            color: white; border-bottom-right-radius: 4px;
+        }
+        .message.assistant .msg-text {
+            background: var(--bg-tertiary); color: var(--text-primary);
+            border-bottom-left-radius: 4px; border: 1px solid var(--border);
+        }
+        .msg-text strong { color: var(--sunbird-orange-light); }
+        .msg-text code {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 4px; font-size: 0.8em;
+        }
+        .msg-text pre {
+            background: rgba(0,0,0,0.4); padding: 10px; border-radius: 8px;
+            overflow-x: auto; margin: 6px 0;
+        }
+        .msg-text pre code { background: none; padding: 0; }
+        .msg-text a { color: var(--blue); text-decoration: none; }
+        .msg-text a:hover { text-decoration: underline; }
+        .msg-text ul, .msg-text ol { margin: 6px 0 0 18px; }
+        .msg-text li { margin-bottom: 3px; }
+
+        /* View Data button on messages */
+        .view-data-btn {
+            align-self: flex-start;
+            display: none; align-items: center; gap: 5px;
+            background: none; border: 1px solid var(--border); border-radius: 6px;
+            padding: 3px 10px; font-size: 0.68rem;
+            color: var(--sunbird-orange-light); cursor: pointer; font-family: inherit; margin-top: 2px;
+        }
+        .view-data-btn:hover { background: rgba(247,148,29,0.08); border-color: var(--border-highlight); }
+        .view-data-btn.has-data { display: inline-flex; }
+        .view-data-btn svg { width: 11px; height: 11px; stroke: currentColor; fill: none; }
+
+        /* Typing */
+        .typing { display: flex; gap: 10px; }
+        .typing-dots {
+            display: flex; gap: 4px; padding: 10px 14px;
+            background: var(--bg-tertiary); border-radius: 14px; border: 1px solid var(--border); align-items: center;
+        }
+        .typing-dots span {
+            width: 6px; height: 6px; background: var(--sunbird-orange);
+            border-radius: 50%; animation: tbounce 1.4s infinite ease-in-out;
+        }
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes tbounce {
+            0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+            40% { transform: translateY(-5px); opacity: 1; }
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 14px 16px; border-top: 1px solid var(--border); background: var(--bg-card);
+        }
+        .input-row { display: flex; gap: 8px; align-items: flex-end; }
+        .input-row textarea {
+            flex: 1; min-height: 44px; max-height: 120px;
+            padding: 10px 14px; background: var(--bg-secondary);
+            border: 1px solid var(--border); border-radius: 12px;
+            color: var(--text-primary); font-family: inherit;
+            font-size: 0.85rem; resize: none; line-height: 1.5;
+        }
+        .input-row textarea:focus {
+            outline: none; border-color: var(--sunbird-orange);
+            box-shadow: 0 0 0 3px rgba(247,148,29,0.1);
+        }
+        .input-row textarea::placeholder { color: var(--text-muted); }
+
+        .send-btn {
+            width: 44px; height: 44px;
+            background: linear-gradient(135deg, var(--sunbird-orange), var(--sunbird-orange-dark));
+            border: none; border-radius: 12px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.15s, box-shadow 0.15s;
+            box-shadow: var(--shadow-sm);
+        }
+        .send-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-md), var(--shadow-glow); }
+        .send-btn:active { transform: translateY(0); }
+        .send-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .send-btn svg { width: 20px; height: 20px; fill: white; }
+
+        /* Suggestions */
+        .suggestions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+        .suggestion {
+            padding: 6px 12px; background: var(--bg-tertiary);
+            border: 1px solid var(--border); border-radius: 20px;
+            color: var(--text-secondary); font-size: 0.72rem; cursor: pointer; font-family: inherit;
+            transition: all 0.2s;
+        }
+        .suggestion:hover { background: var(--bg-hover); border-color: var(--border-highlight); color: var(--sunbird-orange-light); }
+
+        /* ─── Resize Handle ─── */
+        .resize-handle {
+            width: 4px; cursor: col-resize; background: transparent;
+            transition: background 0.2s; flex-shrink: 0; z-index: 50;
+        }
+        .resize-handle:hover, .resize-handle.active { background: var(--sunbird-orange); }
+
+        /* ─── Right Pane: Data Viewer ─── */
+        .data-pane {
+            flex: 1; display: flex; flex-direction: column;
+            background: var(--bg-primary); min-width: 300px;
+        }
+
+        .data-header {
+            padding: 12px 20px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            background: var(--bg-secondary);
+        }
+        .data-header-left { display: flex; align-items: center; gap: 10px; }
+        .data-tool-badge {
+            display: none; padding: 3px 8px;
+            background: rgba(247,148,29,0.10); border: 1px solid rgba(247,148,29,0.25);
+            border-radius: 6px; font-size: 0.65rem; color: var(--sunbird-orange-light);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .data-tool-badge.visible { display: inline-block; }
+
+        .data-tabs { display: flex; gap: 2px; }
+        .data-tab {
+            padding: 5px 12px; background: none; border: 1px solid transparent;
+            border-radius: 6px; color: var(--text-muted); font-size: 0.72rem;
+            cursor: pointer; font-family: inherit; font-weight: 500;
+        }
+        .data-tab.active { background: var(--bg-tertiary); border-color: var(--border); color: var(--text-primary); }
+        .data-tab:hover:not(.active) { color: var(--text-secondary); }
+
+        /* Data Stats */
+        .data-stats {
+            display: none; gap: 18px; padding: 10px 20px;
+            background: var(--bg-secondary); border-bottom: 1px solid var(--border);
+            font-size: 0.7rem;
+        }
+        .data-stat { display: flex; align-items: center; gap: 6px; color: var(--text-muted); }
+        .data-stat-value {
+            color: var(--text-primary); font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Data Content */
+        .data-content { flex: 1; overflow: auto; }
+        .data-content::-webkit-scrollbar { width: 6px; height: 6px; }
+        .data-content::-webkit-scrollbar-track { background: transparent; }
+        .data-content::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 3px; }
+
+        /* Empty State */
+        .data-empty {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100%; gap: 14px; color: var(--text-muted);
+        }
+        .data-empty-icon {
+            width: 64px; height: 64px; background: var(--bg-secondary);
+            border-radius: 16px; display: flex; align-items: center; justify-content: center;
+            border: 1px solid var(--border);
+        }
+        .data-empty-icon svg { width: 28px; height: 28px; stroke: var(--text-muted); fill: none; }
+        .data-empty h3 { font-size: 0.95rem; color: var(--text-secondary); font-weight: 600; }
+        .data-empty p { font-size: 0.8rem; text-align: center; max-width: 300px; line-height: 1.5; }
+
+        /* Table */
+        .data-table-wrapper { padding: 0; overflow: auto; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .data-table thead { position: sticky; top: 0; z-index: 6; }
+        .data-table th {
+            text-align: left; padding: 8px 14px; background: var(--iisl-blue-dark);
+            color: var(--text-secondary); font-weight: 600; font-size: 0.7rem;
+            text-transform: uppercase; letter-spacing: 0.04em;
+            border-bottom: 2px solid var(--sunbird-orange-dark);
+        }
+        .data-table th.row-num-header {
+            width: 42px; min-width: 42px; text-align: center; color: var(--text-muted);
+        }
+        /* Column filter row */
+        .data-table .filter-row th {
+            padding: 4px 6px; background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border);
+        }
+        .data-table .filter-row input {
+            width: 100%; padding: 4px 8px; font-size: 0.72rem;
+            background: var(--bg-primary); color: var(--text-primary);
+            border: 1px solid var(--border); border-radius: 4px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            outline: none; transition: border-color 0.2s;
+        }
+        .data-table .filter-row input::placeholder { color: var(--text-muted); opacity: 0.6; }
+        .data-table .filter-row input:focus { border-color: var(--sunbird-orange); }
+        .data-table td {
+            padding: 8px 14px; color: var(--text-primary);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        /* Row number column */
+        .data-table td.row-num {
+            width: 42px; min-width: 42px; text-align: center;
+            color: var(--text-muted); font-size: 0.7rem;
+            font-family: 'JetBrains Mono', monospace;
+            user-select: none; opacity: 0.5;
+        }
+        /* Alternating row stripes */
+        .data-table tbody tr:nth-child(odd) td { background: var(--bg-secondary); }
+        .data-table tbody tr:nth-child(even) td { background: var(--bg-tertiary); }
+        .data-table tbody tr:hover td { background: var(--bg-hover); }
+        .data-table tbody tr.filtered-out { display: none; }
+        .data-table td.number { font-family: 'JetBrains Mono', monospace; color: var(--blue); }
+
+        /* JSON */
+        .data-json-wrapper { padding: 16px; display: none; }
+        .data-json-wrapper pre {
+            background: var(--bg-secondary); border: 1px solid var(--border);
+            border-radius: 10px; padding: 16px;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
+            color: var(--text-primary); overflow: auto; line-height: 1.6;
+            white-space: pre-wrap; word-break: break-word;
+        }
+        .json-key { color: var(--purple); }
+        .json-string { color: var(--success); }
+        .json-number { color: var(--blue); }
+        .json-bool { color: var(--sunbird-orange); }
+        .json-null { color: var(--text-muted); }
+
+        /* Footer */
+        .footer {
+            position: relative; z-index: 10;
+            text-align: center; padding: 6px 20px;
+            border-top: 1px solid var(--border); background: var(--bg-secondary);
+            font-size: 0.68rem; color: var(--text-muted);
+            display: flex; justify-content: center; align-items: center; gap: 16px;
+            flex-shrink: 0;
+        }
+        .footer a { color: var(--text-secondary); text-decoration: none; }
+        .footer a:hover { color: var(--sunbird-orange); }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-layout { flex-direction: column; }
+            .chat-pane { width: 100% !important; min-width: 0; border-right: none; border-bottom: 1px solid var(--border); max-height: 55vh; }
+            .resize-handle { display: none; }
+            .data-pane { min-height: 200px; }
+            .company-badge { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-pattern"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+            </div>
+            <div class="logo-text">
+                <span class="logo-title">Sunbird AI Assistant</span>
+                <span class="logo-subtitle">DCIM Intelligence Platform</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="status-pill">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">Connected</span>
+            </div>
+            <div class="company-badge">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="3" width="18" height="18" rx="3" stroke="#F7941D" stroke-width="2"/>
+                    <path d="M8 12h8M12 8v8" stroke="#F7941D" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <div class="company-info">
+                    <span class="company-name">Powered by</span>
+                    <span class="company-full">International Integrated Solutions</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Split Layout -->
+    <div class="main-layout">
+
+        <!-- Left: Chat Pane -->
+        <div class="chat-pane" id="chatPane">
+            <div class="pane-header">
+                <span class="pane-header-title">Chat</span>
+                <button class="pane-header-btn" onclick="clearChat()">Clear</button>
+            </div>
+
+            <div class="messages" id="messages">
+                <div class="message assistant">
+                    <div class="avatar">AI</div>
+                    <div class="msg-body">
+                        <div class="msg-text">
+                            Hi! I'm your <strong>Sunbird DCIM assistant</strong>. I can query dcTrack and Power IQ — cabinets, items, locations, power readings, sensors, connections, and more.<br><br>
+                            Ask a question or use a suggestion below. Results will appear in the <strong>Data Viewer</strong> on the right.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <div class="input-row">
+                    <textarea id="chatInput" rows="1" placeholder="Ask about your data center... (Shift+Enter for new line)"></textarea>
+                    <button class="send-btn" id="sendBtn" title="Send message">
+                        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                    </button>
+                </div>
+                <div class="suggestions" id="suggestions">
+                    <button class="suggestion" data-q="List all locations">📍 Locations</button>
+                    <button class="suggestion" data-q="List all cabinets">📦 Cabinets</button>
+                    <button class="suggestion" data-q="Show all PDUs">⚡ PDUs</button>
+                    <button class="suggestion" data-q="Show system health status">💚 Health</button>
+                    <button class="suggestion" data-q="What space is available in cabinet 178B-02?">🔍 Cabinet Space</button>
+                    <button class="suggestion" data-q="List all models">📋 Models</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resize Handle -->
+        <div class="resize-handle" id="resizeHandle"></div>
+
+        <!-- Right: Data Viewer Pane -->
+        <div class="data-pane" id="dataPane">
+            <div class="data-header">
+                <div class="data-header-left">
+                    <span class="pane-header-title">Data Viewer</span>
+                    <span class="data-tool-badge" id="toolBadge"></span>
+                </div>
+                <div class="data-tabs">
+                    <button class="data-tab active" data-view="table" onclick="switchView('table')">Table</button>
+                    <button class="data-tab" data-view="json" onclick="switchView('json')">JSON</button>
+                </div>
+            </div>
+
+            <div class="data-stats" id="dataStats">
+                <div class="data-stat">Rows: <span class="data-stat-value" id="statRows">0</span></div>
+                <div class="data-stat">Columns: <span class="data-stat-value" id="statCols">0</span></div>
+                <div class="data-stat">Tool: <span class="data-stat-value" id="statTool">—</span></div>
+            </div>
+
+            <div class="data-content" id="dataContent">
+                <div class="data-empty" id="dataEmpty">
+                    <div class="data-empty-icon">
+                        <svg viewBox="0 0 24 24" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/>
+                        </svg>
+                    </div>
+                    <h3>No data yet</h3>
+                    <p>Ask a question in the chat and the API response will appear here as a table with sortable columns.</p>
+                </div>
+
+                <div class="data-table-wrapper" id="tableView" style="display:none;"></div>
+                <div class="data-json-wrapper" id="jsonView"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <span>&copy; 2026 International Integrated Solutions Ltd.</span>
+        <a href="https://www.iisl.com">www.iisl.com</a>
+        <span>Sunbird DCIM Partner</span>
+    </footer>
+
+<script>
+// ─── Config ───
+const API_URL = '/api/chat/completions';
+const MCP_BASE = '/mcp';  // proxied via nginx to MCP server
+const MCP_URL = 'https://sunbird-mcp.apps.ocp419.crucible.iisl.com';
+
+// ─── DOM ───
+const messagesEl = document.getElementById('messages');
+const chatInput = document.getElementById('chatInput');
+const sendBtn = document.getElementById('sendBtn');
+const suggestionsEl = document.getElementById('suggestions');
+const toolBadge = document.getElementById('toolBadge');
+const dataStats = document.getElementById('dataStats');
+const dataEmpty = document.getElementById('dataEmpty');
+const tableView = document.getElementById('tableView');
+const jsonView = document.getElementById('jsonView');
+
+let currentView = 'table';
+let currentRawData = null;
+let messageHistory = [];
+
+// ─── Chat Input ───
+chatInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+
+chatInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+
+sendBtn.addEventListener('click', sendMessage);
+
+document.querySelectorAll('.suggestion').forEach(btn => {
+    btn.addEventListener('click', function() {
+        chatInput.value = this.dataset.q;
+        sendMessage();
+    });
+});
+
+// ─── Resize Handle ───
+const resizeHandle = document.getElementById('resizeHandle');
+const chatPane = document.getElementById('chatPane');
+let isResizing = false;
+
+resizeHandle.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    resizeHandle.classList.add('active');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (!isResizing) return;
+    const w = Math.max(300, Math.min(e.clientX, window.innerWidth - 300));
+    chatPane.style.width = w + 'px';
+});
+
+document.addEventListener('mouseup', () => {
+    if (isResizing) {
+        isResizing = false;
+        resizeHandle.classList.remove('active');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+    }
+});
+
+// ─── Messages ───
+function addMessage(content, isUser, rawData, toolName) {
+    const div = document.createElement('div');
+    div.className = 'message ' + (isUser ? 'user' : 'assistant');
+
+    let html = '<div class="avatar">' + (isUser ? 'You' : 'AI') + '</div>';
+    html += '<div class="msg-body">';
+    html += '<div class="msg-text">' + (isUser ? escapeHtml(content) : formatMarkdown(content)) + '</div>';
+
+    if (!isUser && rawData) {
+        html += '<button class="view-data-btn has-data" onclick="showDataFromMsg(this)">' +
+            '<svg viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6h16.5M3.75 12h16.5m-16.5 6h16.5"/></svg>' +
+            ' View in table' + (toolName ? ' · ' + toolName.replace(/^(dctrack_|poweriq_|dcim_)/, '') : '') + '</button>';
+    }
+
+    html += '</div>';
+    div.innerHTML = html;
+
+    if (rawData) {
+        div.dataset.raw = JSON.stringify(rawData);
+        div.dataset.tool = toolName || '';
+    }
+
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function showDataFromMsg(btn) {
+    const msgDiv = btn.closest('.message');
+    if (!msgDiv) return;
+    try {
+        const raw = JSON.parse(msgDiv.dataset.raw);
+        displayData(raw, msgDiv.dataset.tool || '');
+    } catch(e) {}
+}
+
+function escapeHtml(t) {
+    return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function formatMarkdown(text) {
+    let s = escapeHtml(text);
+    s = s.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+    s = s.replace(/^[\s]*[-•]\s+(.+)/gm, '<li>$1</li>');
+    s = s.replace(/(<li>[\s\S]*?<\/li>)/g, function(m) { return '<ul>' + m + '</ul>'; });
+    s = s.replace(/<\/ul>\s*<ul>/g, '');
+    s = s.replace(/\n/g, '<br>');
+    return s;
+}
+
+// ─── Typing ───
+function addTyping() {
+    const div = document.createElement('div');
+    div.className = 'typing'; div.id = 'typing';
+    div.innerHTML = '<div class="avatar" style="background:linear-gradient(135deg,var(--sunbird-orange),var(--sunbird-orange-dark));color:white;font-size:0.65rem;font-weight:600;">AI</div>' +
+        '<div class="typing-dots"><span></span><span></span><span></span></div>';
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function removeTyping() {
+    const el = document.getElementById('typing');
+    if (el) el.remove();
+}
+
+// ─── Send Message ───
+async function sendMessage() {
+    const msg = chatInput.value.trim();
+    if (!msg) return;
+
+    suggestionsEl.style.display = 'none';
+    addMessage(msg, true);
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+    sendBtn.disabled = true;
+    addTyping();
+
+    messageHistory.push({ role: 'user', content: msg });
+
+    try {
+        // Step 1: Send to n8n for LLM processing
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: messageHistory.slice(-20) })
+        });
+
+        removeTyping();
+        if (!res.ok) throw new Error('Server error: ' + res.status);
+
+        const data = await res.json();
+        const fullContent = extractContent(data);
+        const toolUsed = data?.metadata?.tool_used || null;
+
+        if (toolUsed) {
+            // Step 2: Tool was used — get raw data for Data Viewer
+            const toolCount = data?.metadata?.tool_count || 1;
+            const shortSummary = makeShortSummary(toolUsed, fullContent, toolCount);
+            const toolArgs = data?.metadata?.tool_args || null;
+            let rawData = data?.metadata?.raw_data || null;
+
+            // Unwrap raw_data if it has success/result wrapper
+            if (rawData && rawData.success === true && rawData.result !== undefined) {
+                rawData = rawData.result;
+            }
+
+            // Detect paginated response: { data: [...], totalRows, showing, pageSize }
+            let paginationMeta = null;
+            if (rawData && !Array.isArray(rawData) && rawData.data && Array.isArray(rawData.data)) {
+                paginationMeta = {
+                    totalRows: rawData.totalRows || rawData.data.length,
+                    showing: rawData.showing || rawData.data.length,
+                    pageSize: rawData.pageSize || rawData.data.length,
+                };
+                rawData = rawData.data; // unwrap to the actual array
+            }
+
+            // For bulk operations, flatten the results array for the table
+            if (rawData && Array.isArray(rawData)) {
+                rawData = rawData.map(item => {
+                    // Unwrap nested {success, result} or {item} wrappers
+                    if (item && item.success === true && item.result !== undefined) return item.result;
+                    if (item && item.data && typeof item.data === 'object') {
+                        const d = item.data;
+                        if (d.success === true && d.result !== undefined) return d.result;
+                        if (d.item) return d.item;
+                        return d;
+                    }
+                    if (item && item.item) return item.item;
+                    return item;
+                });
+            }
+
+            if (!rawData) {
+                // Try re-fetch from MCP with correct args if available
+                if (toolArgs && !Array.isArray(toolArgs)) {
+                    addTyping();
+                    try {
+                        rawData = await fetchToolData(toolUsed.replace(/\s*\(x\d+\)$/, ''), toolArgs);
+                        removeTyping();
+                    } catch (e) { removeTyping(); rawData = null; }
+                }
+            }
+
+            // Last resort: parse markdown table from LLM response
+            if (!rawData) {
+                const parsed = parseMarkdownTable(fullContent);
+                if (parsed && parsed.length > 0) rawData = parsed;
+            }
+
+            if (rawData) {
+                const rows = extractRows(rawData);
+                const count = rows ? rows.length : 0;
+                // Build smart pagination summary
+                let countStr = '';
+                if (paginationMeta && paginationMeta.totalRows > count) {
+                    countStr = ' — showing **' + count + ' of ' + paginationMeta.totalRows.toLocaleString() + ' total**. See Data Viewer →';
+                } else if (count > 0) {
+                    countStr = ' — **' + count + ' result' + (count !== 1 ? 's' : '') + '**. See Data Viewer →';
+                } else {
+                    countStr = ' — See Data Viewer →';
+                }
+                const chatMsg = shortSummary + countStr;
+                messageHistory.push({ role: 'assistant', content: chatMsg });
+                addMessage(chatMsg, false, rawData, toolUsed);
+                displayData(rawData, toolUsed);
+            } else {
+                // No raw data — show full LLM summary in chat
+                messageHistory.push({ role: 'assistant', content: fullContent });
+                addMessage(fullContent, false);
+            }
+        } else {
+            // No tool — plain conversational answer
+            messageHistory.push({ role: 'assistant', content: fullContent });
+            addMessage(fullContent, false);
+        }
+    } catch (err) {
+        removeTyping();
+        addMessage('Error: ' + err.message, false);
+    }
+
+    sendBtn.disabled = false;
+    chatInput.focus();
+}
+
+// ─── Parse markdown table from LLM response text ───
+function parseMarkdownTable(text) {
+    // Find markdown tables like:
+    // | Header1 | Header2 |
+    // | --- | --- |
+    // | val1 | val2 |
+    const lines = text.split('\n');
+    const tables = [];
+    let i = 0;
+
+    while (i < lines.length) {
+        const line = lines[i].trim();
+        // Detect a table header row (starts and ends with |, has multiple |)
+        if (line.startsWith('|') && line.endsWith('|') && line.split('|').length >= 3) {
+            // Check next line is separator (| --- | --- |)
+            const nextLine = (lines[i + 1] || '').trim();
+            if (nextLine.match(/^\|[\s\-:|]+\|$/)) {
+                // Parse headers
+                const headers = line.split('|').slice(1, -1).map(h => h.trim()).filter(h => h);
+                const rows = [];
+                let j = i + 2;
+                while (j < lines.length) {
+                    const row = lines[j].trim();
+                    if (!row.startsWith('|') || !row.endsWith('|')) break;
+                    const cells = row.split('|').slice(1, -1).map(c => c.trim());
+                    const obj = {};
+                    headers.forEach((h, idx) => {
+                        let val = cells[idx] || '—';
+                        // Try to parse numbers
+                        if (val !== '—' && val !== '-' && !isNaN(val) && val !== '') val = Number(val);
+                        obj[h] = val;
+                    });
+                    rows.push(obj);
+                    j++;
+                }
+                if (rows.length > 0) return rows;  // Return first table found
+                i = j;
+                continue;
+            }
+        }
+        i++;
+    }
+    return null;
+}
+
+// ─── Fetch raw data from MCP server directly ───
+async function fetchToolData(toolName, args) {
+    const res = await fetch(MCP_BASE + '/tools/' + toolName, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(args || {})
+    });
+    if (!res.ok) throw new Error('MCP error: ' + res.status);
+    const data = await res.json();
+    // Unwrap {success: true, result: ...} wrapper if present
+    if (data && data.success === true && data.result !== undefined) {
+        return data.result;
+    }
+    return data;
+}
+
+// ─── Generate short chat summary from tool name ───
+function makeShortSummary(toolName, fullContent, toolCount) {
+    // Handle bulk operations (x7) suffix
+    const baseTool = toolName.replace(/\s*\(x\d+\)$/, '');
+    const bulkCount = toolCount || 1;
+
+    const toolMap = {
+        'dctrack_list_locations': '📍 Fetched **locations**',
+        'dctrack_list_cabinets': '📦 Fetched **cabinets**',
+        'dctrack_list_connections': '🔗 Fetched **connections**',
+        'dctrack_list_models': '📋 Fetched **models**',
+        'dctrack_search_items': '🔍 Searched **items**',
+        'dctrack_get_item': '📄 Retrieved **item details**',
+        'dctrack_get_location': '📍 Retrieved **location details**',
+        'dctrack_get_cabinet': '📦 Retrieved **cabinet details**',
+        'dctrack_get_cabinet_items': '📦 Fetched **cabinet items**',
+        'dctrack_get_cabinet_capacity': '📊 Fetched **cabinet capacity**',
+        'dctrack_get_connection': '🔗 Retrieved **connection details**',
+        'dctrack_get_model': '📋 Retrieved **model details**',
+        'dctrack_list_items': '📄 Fetched all **items**',
+        'dctrack_create_cabinet': '📦 Created **cabinet' + (bulkCount > 1 ? 's** (x' + bulkCount + ')' : '**'),
+        'dctrack_create_item': '📄 Created **item' + (bulkCount > 1 ? 's** (x' + bulkCount + ')' : '**'),
+        'dctrack_create_connection': '🔗 Created **connection' + (bulkCount > 1 ? 's** (x' + bulkCount + ')' : '**'),
+        'dctrack_update_item': '✏️ Updated **item' + (bulkCount > 1 ? 's** (x' + bulkCount + ')' : '**'),
+        'dctrack_delete_item': '🗑️ Deleted **item' + (bulkCount > 1 ? 's** (x' + bulkCount + ')' : '**'),
+        'dctrack_create_location': '📍 Created **location**',
+        'dctrack_create_model': '📋 Created **model**',
+        'dctrack_create_project': '📁 Created **project**',
+        'poweriq_list_pdus': '⚡ Fetched **PDUs**',
+        'poweriq_list_racks': '🗄️ Fetched **racks**',
+        'poweriq_list_sensors': '🌡️ Fetched **sensors**',
+        'poweriq_list_outlets': '🔌 Fetched **outlets**',
+        'poweriq_get_pdu': '⚡ Retrieved **PDU details**',
+        'poweriq_list_events': '📋 Fetched **events**',
+        'poweriq_list_alarms': '🚨 Fetched **alarms**',
+        'dcim_get_health_status': '💚 Checked **system health**',
+    };
+
+    if (toolMap[baseTool]) return toolMap[baseTool];
+
+    // Generate from tool name pattern
+    const clean = toolName.replace(/^(dctrack_|poweriq_|dcim_)/, '').replace(/_/g, ' ');
+    return '✅ Executed **' + clean + '**';
+}
+
+function extractContent(data) {
+    if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch(e) { return data; }
+    }
+    if (data.choices && data.choices[0] && data.choices[0].message) return data.choices[0].message.content;
+    if (data.response) return data.response;
+    if (data.content) return data.content;
+    if (data.message) return data.message;
+    return JSON.stringify(data, null, 2);
+}
+
+// ─── Data Viewer ───
+function displayData(rawData, toolName) {
+    currentRawData = rawData;
+
+    toolBadge.textContent = toolName || 'API Result';
+    toolBadge.classList.add('visible');
+
+    let rows = extractRows(rawData);
+
+    if (rows && rows.length > 0) {
+        renderTable(rows);
+        document.getElementById('statRows').textContent = rows.length;
+        document.getElementById('statCols').textContent = Object.keys(rows[0]).length;
+    } else {
+        tableView.innerHTML = '<div style="padding:24px;color:var(--text-muted);font-size:0.85rem;">Response is not tabular. Switch to <strong>JSON</strong> view.</div>';
+        tableView.style.display = 'block';
+        document.getElementById('statRows').textContent = '—';
+        document.getElementById('statCols').textContent = '—';
+    }
+
+    document.getElementById('statTool').textContent = toolName || '—';
+    dataStats.style.display = 'flex';
+    dataEmpty.style.display = 'none';
+
+    jsonView.innerHTML = '<pre>' + syntaxHighlight(JSON.stringify(rawData, null, 2)) + '</pre>';
+    switchView(currentView);
+}
+
+function extractRows(data) {
+    if (!data) return null;
+    if (Array.isArray(data)) return data.length > 0 && typeof data[0] === 'object' ? data : null;
+    const keys = ['result','items','searchResults','locations','cabinets','connections',
+                  'models','pdus','racks','sensors','outlets','readings',
+                  'events','alarms','results','data','records','list',
+                  'tickets','requests','projects','ports','makes'];
+    for (const k of keys) {
+        if (data[k] && Array.isArray(data[k]) && data[k].length > 0) return data[k];
+    }
+    if (data.searchResults && data.searchResults.items) return data.searchResults.items;
+    if (typeof data === 'object' && !Array.isArray(data)) return [data];
+    return null;
+}
+
+function renderTable(rows) {
+    if (!rows || rows.length === 0) {
+        tableView.innerHTML = '';
+        tableView.style.display = 'block';
+        return;
+    }
+
+    // Human-readable columns first — names, types, status, context
+    // IDs and system flags go to JSON view
+    const priority = [
+        // Names & identifiers humans care about
+        'tiName','name','tiLocationName','tiLocationCode','tiNodeCode',
+        'locationName','data_center_name',
+        // Type / classification
+        'cmbHierarchyLevel','tiClass','cmbSubclass','type','locationType',
+        'model','make','subclass',
+        // Relationships / context
+        'tiParentLocationCode','cmbLocation','cmbCabinet','parentName',
+        // Status & state
+        'cmbStatus','status','severity','cmbPhase',
+        // Key attributes
+        'description','tiSerialNumber','tiAssetTag','value',
+        'tiLocationArea','tiRoomWidth','tiRoomLength',
+        'tiAddressCity','tiAddressState','cmbAddressCountry',
+        // Power / capacity
+        'rating','voltage','current','power','energy',
+        'pdu_name','rack_name','outlet_name',
+        // Useful booleans
+        'chkContainsAssets',
+    ];
+
+    // Columns to always hide in table (system internals — use JSON for these)
+    const hidden = new Set([
+        'id','localeId','customFields','cbDefaultSite',
+        'chkFullIntegration','chkEnableVPC','chkVpcAcPower',
+        'tiLatitude','tiLongitude','tiRaisedFloorHeight',
+        'tiAddressStreet','tiAddressZip',
+        'tiOwnerName','pdu_id','rack_id','outlet_id',
+        'sensor_id','item_id','itemId','modelId','cabinetId',
+        'locationId','parentId','sourceItemId','destItemId',
+        'createdBy','updatedBy','createdAt','updatedAt',
+        'requestId','connectionId','projectId',
+    ]);
+
+    const allKeys = new Set();
+    rows.forEach(r => Object.keys(r).forEach(k => allKeys.add(k)));
+
+    const cols = [...allKeys].filter(k => {
+        if (hidden.has(k)) return false;
+        const sample = rows.find(r => r[k] != null);
+        if (sample && typeof sample[k] === 'object') return false;
+        return true;
+    }).sort((a, b) => {
+        const ai = priority.indexOf(a), bi = priority.indexOf(b);
+        if (ai >= 0 && bi >= 0) return ai - bi;
+        if (ai >= 0) return -1;
+        if (bi >= 0) return 1;
+        return a.localeCompare(b);
+    });
+
+    const displayCols = cols.slice(0, 10);
+
+    // Clean column headers for humans
+    function cleanHeader(col) {
+        const map = {
+            'tiName': 'Name', 'tiLocationName': 'Name', 'tiLocationCode': 'Location Path',
+            'cmbHierarchyLevel': 'Type', 'tiParentLocationCode': 'Parent',
+            'tiClass': 'Class', 'cmbSubclass': 'Subclass', 'cmbLocation': 'Location',
+            'cmbCabinet': 'Cabinet', 'cmbStatus': 'Status', 'cmbPhase': 'Phase',
+            'tiSerialNumber': 'Serial #', 'tiAssetTag': 'Asset Tag',
+            'tiLocationArea': 'Area (sqft)', 'tiRoomWidth': 'Width', 'tiRoomLength': 'Length',
+            'tiNodeCode': 'Code', 'tiAddressCity': 'City', 'tiAddressState': 'State',
+            'cmbAddressCountry': 'Country', 'chkContainsAssets': 'Has Assets',
+            'data_center_name': 'Data Center', 'locationType': 'Type',
+            'locationName': 'Name', 'parentName': 'Parent',
+        };
+        if (map[col]) return map[col];
+        // Strip common prefixes and camelCase → Title Case
+        let s = col.replace(/^(ti|cmb|chk|cb)/, '');
+        s = s.replace(/([a-z])([A-Z])/g, '$1 $2');
+        s = s.replace(/_/g, ' ');
+        return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+
+    let html = '<table class="data-table" id="dataTable"><thead>';
+    // Header row
+    html += '<tr><th class="row-num-header">#</th>';
+    displayCols.forEach(c => { html += '<th title="' + escapeHtml(c) + '">' + escapeHtml(cleanHeader(c)) + '</th>'; });
+    html += '</tr>';
+    // Filter row
+    html += '<tr class="filter-row"><th></th>';
+    displayCols.forEach((c, i) => {
+        html += '<th><input type="text" placeholder="Filter..." data-col="' + i + '" onkeyup="filterTable(this)"></th>';
+    });
+    html += '</tr></thead><tbody>';
+
+    rows.forEach((row, idx) => {
+        html += '<tr data-row-idx="' + idx + '">';
+        html += '<td class="row-num">' + (idx + 1) + '</td>';
+        displayCols.forEach(c => {
+            let val = row[c];
+            if (val === null || val === undefined) val = '—';
+            const isNum = typeof val === 'number';
+            html += '<td' + (isNum ? ' class="number"' : '') + ' title="' + escapeHtml(String(val)) + '">' + escapeHtml(String(val)) + '</td>';
+        });
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    if (cols.length > 10) {
+        html += '<div style="padding:8px 14px;font-size:0.7rem;color:var(--text-muted);">Showing ' + displayCols.length + ' key columns. Switch to JSON for all ' + allKeys.size + ' fields.</div>';
+    }
+
+    tableView.innerHTML = html;
+    tableView.style.display = 'block';
+}
+
+function filterTable(input) {
+    const table = document.getElementById('dataTable');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    if (!tbody) return;
+
+    // Collect all active filters
+    const filters = {};
+    table.querySelectorAll('.filter-row input').forEach(inp => {
+        const val = inp.value.toLowerCase().trim();
+        if (val) filters[parseInt(inp.dataset.col)] = val;
+    });
+
+    // Apply filters to each row
+    let visibleCount = 0;
+    tbody.querySelectorAll('tr').forEach(tr => {
+        const cells = tr.querySelectorAll('td:not(.row-num)');
+        let show = true;
+        for (const [colIdx, filterVal] of Object.entries(filters)) {
+            const cell = cells[parseInt(colIdx)];
+            if (cell && !cell.textContent.toLowerCase().includes(filterVal)) {
+                show = false;
+                break;
+            }
+        }
+        tr.classList.toggle('filtered-out', !show);
+        if (show) {
+            visibleCount++;
+            tr.querySelector('.row-num').textContent = visibleCount;
+        }
+    });
+
+    // Update stats
+    const statRows = document.getElementById('statRows');
+    const totalRows = tbody.querySelectorAll('tr').length;
+    if (Object.keys(filters).length > 0) {
+        statRows.textContent = visibleCount + ' / ' + totalRows;
+    } else {
+        statRows.textContent = totalRows;
+    }
+}
+
+function syntaxHighlight(json) {
+    json = escapeHtml(json);
+    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function(m) {
+        let c = 'json-number';
+        if (/^"/.test(m)) { c = /:$/.test(m) ? 'json-key' : 'json-string'; }
+        else if (/true|false/.test(m)) { c = 'json-bool'; }
+        else if (/null/.test(m)) { c = 'json-null'; }
+        return '<span class="' + c + '">' + m + '</span>';
+    });
+}
+
+function switchView(view) {
+    currentView = view;
+    document.querySelectorAll('.data-tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
+    tableView.style.display = view === 'table' ? 'block' : 'none';
+    jsonView.style.display = view === 'json' ? 'block' : 'none';
+}
+
+// ─── Clear ───
+function clearChat() {
+    messagesEl.innerHTML = '';
+    messageHistory = [];
+    suggestionsEl.style.display = 'flex';
+    currentRawData = null;
+    dataEmpty.style.display = 'flex';
+    tableView.style.display = 'none';
+    jsonView.style.display = 'none';
+    dataStats.style.display = 'none';
+    toolBadge.classList.remove('visible');
+}
+
+// ─── Health ───
+async function checkHealth() {
+    try {
+        const r = await fetch(MCP_URL + '/health');
+        if (r.ok) {
+            document.getElementById('statusDot').classList.remove('offline');
+            document.getElementById('statusText').textContent = 'Connected';
+        } else throw 0;
+    } catch {
+        document.getElementById('statusDot').classList.add('offline');
+        document.getElementById('statusText').textContent = 'Offline';
+    }
+}
+
+checkHealth();
+setInterval(checkHealth, 30000);
+chatInput.focus();
+</script>
+</body>
+</html>

@@ -69,13 +69,14 @@ export const dctrackReadToolDefinitions = [
   },
   {
     name: 'dctrack_get_cabinet_capacity',
-    description: 'Get detailed capacity information for a cabinet including space (U), power (kW), and utilization',
+    description: 'Get detailed capacity information for a cabinet including space (U), power (kW), and utilization. Provide either cabinetId (numeric) or cabinetName (string like "178B-02").',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        cabinetId: { type: 'number', description: 'The unique identifier of the cabinet' },
+        cabinetId: { type: 'number', description: 'The numeric ID of the cabinet (if known)' },
+        cabinetName: { type: 'string', description: 'The cabinet name (e.g. "178B-02") — will be looked up to find the ID' },
       },
-      required: ['cabinetId'],
+      required: [],
     },
   },
   {
@@ -87,8 +88,7 @@ export const dctrackReadToolDefinitions = [
         query: { type: 'string', description: 'Search query (name, serial number, asset tag)' },
         class: {
           type: 'string',
-          enum: ['Device', 'Network', 'Data Panel', 'Probe', 'Passive', 'CRAC', 'UPS', 'PDU', 'Floor PDU', 'Rack PDU', 'Power Outlet'],
-          description: 'Filter by item class',
+          description: 'Filter by item class (Cabinet, Device, Network, Data Panel, Probe, Passive, CRAC, UPS, PDU, Floor PDU, Rack PDU, Power Outlet, etc.)',
         },
         locationId: { type: 'number', description: 'Filter by location ID' },
         cabinetId: { type: 'number', description: 'Filter by cabinet ID' },

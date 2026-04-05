@@ -27,6 +27,8 @@ export const config = {
   /** Sunbird DCIM connection */
   sunbird: {
     baseUrl: env.SUNBIRD_BASE_URL,
+    dctrackBaseUrl: env.DCTRACK_BASE_URL ?? env.SUNBIRD_BASE_URL,
+    poweriqBaseUrl: env.POWERIQ_BASE_URL ?? env.SUNBIRD_BASE_URL,
     username: env.SUNBIRD_USERNAME,
     password: env.SUNBIRD_PASSWORD,
     timeout: env.SUNBIRD_TIMEOUT,

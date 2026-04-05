@@ -6,6 +6,7 @@
  */
 
 import { BaseClient } from './base-client.js';
+import { config } from '../../config/index.js';
 import { logger } from '../logger.js';
 import type {
   PowerIQDataCenter, PowerIQPDU, PowerIQPDUReading, PowerIQOutletReading,
@@ -19,7 +20,7 @@ import type {
 
 export class PowerIQClient extends BaseClient {
   constructor() {
-    super('poweriq', '/api/v2');
+    super('poweriq', '/api/v2', config.sunbird.poweriqBaseUrl);
   }
 
   // =======================================================================
@@ -50,13 +51,21 @@ export class PowerIQClient extends BaseClient {
   }
 
   async getPDUReadings(pduId: number): Promise<PowerIQPDUReading | null> {
-    const res = await this.get<any>(`/readings/pdus/${pduId}`, {}, false);
-    return res.pdu_reading ?? res.reading ?? res;
+    // PDU readings are embedded in the PDU object — fetch the PDU and extract reading
+    const pdu = await this.getPDU(pduId);
+    if (!pdu) return null;
+    return (pdu as any).reading ?? null;
   }
 
   async getOutletReadings(pduId: number): Promise<PowerIQOutletReading[]> {
-    const res = await this.get<any>(`/pdus/${pduId}/outlets/readings`, {}, false);
-    return res.outlet_readings ?? res.readings ?? [];
+    // Get outlets for this PDU first, then extract readings from each
+    const res = await this.get<any>(`/pdus/${pduId}/outlets`);
+    const outlets = res.outlets ?? [];
+    return outlets.map((o: any) => ({
+      outletId: o.id,
+      name: o.name ?? o.label,
+      reading: o.reading ?? null,
+    }));
   }
 
   // =======================================================================
@@ -106,19 +115,29 @@ export class PowerIQClient extends BaseClient {
     endTime?: string;
     resolution?: 'hourly' | 'daily' | 'weekly' | 'monthly';
   }): Promise<PowerIQPUE[]> {
-    const res = await this.get<any>('/pue', params as any, false);
+    // Use /pue_calculations endpoint (no /pue endpoint exists)
+    const res = await this.get<any>('/pue_calculations', params as any, false);
 
-    if (res.pue !== undefined) {
+    if (res.pue_calculation) {
+      const calc = res.pue_calculation;
       return [
         {
-          pue: res.pue,
-          itPowerKw: res.it_power_kw ?? res.itPowerKw ?? 0,
-          facilityPowerKw: res.facility_power_kw ?? res.facilityPowerKw ?? 0,
-          readingTime: res.reading_time ?? new Date().toISOString(),
+          pue: calc.pue ?? calc.current_pue ?? 0,
+          itPowerKw: calc.it_power_kw ?? calc.it_power ?? 0,
+          facilityPowerKw: calc.facility_power_kw ?? calc.total_power ?? 0,
+          readingTime: calc.reading_time ?? new Date().toISOString(),
         },
       ];
     }
-    return res.pue_readings ?? res.data ?? [];
+    if (res.pue_calculations) {
+      return res.pue_calculations.map((calc: any) => ({
+        pue: calc.pue ?? calc.current_pue ?? 0,
+        itPowerKw: calc.it_power_kw ?? calc.it_power ?? 0,
+        facilityPowerKw: calc.facility_power_kw ?? calc.total_power ?? 0,
+        readingTime: calc.reading_time ?? new Date().toISOString(),
+      }));
+    }
+    return Array.isArray(res) ? res : [];
   }
 
   // =======================================================================
@@ -131,12 +150,12 @@ export class PowerIQClient extends BaseClient {
     acknowledged?: boolean;
     limit?: number;
   }): Promise<PowerIQAlert[]> {
-    const res = await this.get<any>(
-      '/alerts',
-      { ...params, limit: params?.limit ?? 100 } as any,
-      false,
-    );
-    return res.alerts ?? res.data ?? [];
+    // No /alerts endpoint — use /events which tracks all alerts/events
+    const queryParams: Record<string, any> = { limit: params?.limit ?? 100 };
+    if (params?.severity) queryParams['severity_eq'] = params.severity;
+    if (params?.type) queryParams['event_type_eq'] = params.type;
+    const res = await this.get<any>('/events', queryParams, false);
+    return res.events ?? res.data ?? [];
   }
 
   // =======================================================================
@@ -147,8 +166,12 @@ export class PowerIQClient extends BaseClient {
     cabinetId?: number;
     pageSize?: number;
   }): Promise<PowerIQITDevice[]> {
-    const res = await this.get<any>('/it_devices', params as any);
-    return res.it_devices ?? res.data ?? [];
+    // No /it_devices endpoint — use /devices which lists all managed devices
+    const queryParams: Record<string, any> = {};
+    if (params?.cabinetId) queryParams['parent_id_eq'] = params.cabinetId;
+    if (params?.pageSize) queryParams['limit'] = params.pageSize;
+    const res = await this.get<any>('/devices', queryParams);
+    return res.devices ?? res.data ?? [];
   }
 
   // =======================================================================

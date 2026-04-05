@@ -37,8 +37,16 @@ export async function handleDcTrackPortsTool(
 
     case 'dctrack_create_data_port': {
       const p = createDataPortSchema.parse(args);
-      const { itemId, ...portData } = p;
-      return dctrackClient.createDataPort(itemId, portData);
+      // v2 API uses portName, portSubClass (capital C), connector, media, protocol, dataRate
+      const portData: Record<string, any> = {
+        portName: p.portName,
+        portSubClass: p.portSubclass ?? 'Physical',
+      };
+      if (p.connector) portData.connector = p.connector;
+      if (p.mediaType) portData.media = p.mediaType;
+      if (p.protocol) portData.protocol = p.protocol;
+      if (p.dataRate) portData.dataRate = p.dataRate;
+      return dctrackClient.createDataPort(p.itemId, portData);
     }
 
     case 'dctrack_update_data_port': {

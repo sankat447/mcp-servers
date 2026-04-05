@@ -31,18 +31,16 @@ export const getCabinetItemsSchema = z.object({
 });
 
 export const getCabinetCapacitySchema = z.object({
-  cabinetId: z.number().describe('The unique identifier of the cabinet'),
+  cabinetId: z.number().optional().describe('The numeric ID of the cabinet'),
+  cabinetName: z.string().optional().describe('The cabinet name to look up'),
 });
 
 export const searchItemsSchema = z.object({
   query: z.string().optional().describe('Search query (name, serial number, asset tag)'),
   class: z
-    .enum([
-      'Device', 'Network', 'Data Panel', 'Probe', 'Passive',
-      'CRAC', 'UPS', 'PDU', 'Floor PDU', 'Rack PDU', 'Power Outlet',
-    ])
+    .string()
     .optional()
-    .describe('Filter by item class'),
+    .describe('Filter by item class (Cabinet, Device, Network, Data Panel, Probe, Passive, CRAC, UPS, PDU, Floor PDU, Rack PDU, Power Outlet, etc.)'),
   locationId: z.number().optional().describe('Filter by location ID'),
   cabinetId: z.number().optional().describe('Filter by cabinet ID'),
   status: z

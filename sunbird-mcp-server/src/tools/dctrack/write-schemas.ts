@@ -92,12 +92,14 @@ export const bulkUpdateSchema = z.object({
 export const createCabinetSchema = z.object({
   name: z.string(),
   locationId: z.number(),
+  make: z.string().optional().describe('Make/manufacturer name (e.g., "Rittal")'),
+  model: z.string().optional().describe('Model name (e.g., "Orsted VX5311.116")'),
   modelId: z.number().optional(),
   ruHeight: z.number().default(42),
   ratedPowerKw: z.number().optional(),
   rowPosition: z.number().optional(),
   customFields: z.record(z.any()).optional(),
-});
+}).passthrough();
 
 export const createLocationSchema = z.object({
   name: z.string(),

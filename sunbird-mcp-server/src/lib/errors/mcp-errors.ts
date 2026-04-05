@@ -13,7 +13,7 @@ export class McpServerError extends Error {
   /** JSON-RPC error code (-32000 … -32099 are server-defined) */
   public readonly code: number;
   /** Optional upstream details for logging (never leaked to clients) */
-  public readonly cause?: unknown;
+  public override readonly cause?: unknown;
 
   constructor(message: string, code = -32000, cause?: unknown) {
     super(message);

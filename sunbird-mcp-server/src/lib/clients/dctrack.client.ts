@@ -6,6 +6,7 @@
  */
 
 import { BaseClient } from './base-client.js';
+import { config } from '../../config/index.js';
 import { logger } from '../logger.js';
 import type {
   DcTrackLocation, DcTrackCabinet, DcTrackItem, DcTrackCapacity,
@@ -17,8 +18,25 @@ import type {
 } from '../../types/index.js';
 
 export class DcTrackClient extends BaseClient {
+  /** Pagination metadata from the last quicksearch call */
+  private _lastSearchMeta: { totalRows: number; pageNumber: number; pageSize: number } = {
+    totalRows: -1, pageNumber: 0, pageSize: 0,
+  };
+
+  /** Get pagination metadata from the most recent quicksearch call */
+  get lastSearchMeta() { return { ...this._lastSearchMeta }; }
+
+  /** Track pagination metadata from a quicksearch API response */
+  private trackSearchMeta(res: any, pageSize: number): void {
+    this._lastSearchMeta = {
+      totalRows: typeof res.totalRows === 'number' ? res.totalRows : -1,
+      pageNumber: typeof res.pageNumber === 'number' ? res.pageNumber : 0,
+      pageSize,
+    };
+  }
+
   constructor() {
-    super('dctrack', '/api/v2');
+    super('dctrack', '/api/v2', config.sunbird.dctrackBaseUrl);
   }
 
   // =======================================================================
@@ -31,16 +49,13 @@ export class DcTrackClient extends BaseClient {
     pageSize?: number;
     pageNumber?: number;
   }): Promise<DcTrackLocation[]> {
-    const res = await this.get<any>('/dcimoperations/locations', {
-      ...params,
-      pageSize: params?.pageSize ?? 100,
-      pageNumber: params?.pageNumber ?? 0,
-    });
+    // dcTrack uses v1 API for locations list
+    const res = await this.get<any>('/../v1/locations', params);
     return res.locations ?? res.data ?? [];
   }
 
   async getLocation(locationId: number): Promise<DcTrackLocation | null> {
-    const res = await this.get<any>(`/dcimoperations/locations/${locationId}`);
+    const res = await this.get<any>(`/../v1/locations/${locationId}`);
     return res.location ?? res;
   }
 
@@ -49,27 +64,69 @@ export class DcTrackClient extends BaseClient {
     pageSize?: number;
     pageNumber?: number;
   }): Promise<DcTrackCabinet[]> {
-    const res = await this.get<any>('/dcimoperations/cabinets', {
-      ...params,
-      pageSize: params?.pageSize ?? 100,
-      pageNumber: params?.pageNumber ?? 0,
+    // dcTrack has no dedicated cabinets endpoint — use quicksearch with class filter
+    const columns: any[] = [
+      { name: 'tiClass', filter: { eq: 'Cabinet' } },
+    ];
+    if (params?.locationId) {
+      // Resolve locationId to location path string for cmbLocation filter
+      let locationPath: string = String(params.locationId);
+      try {
+        const loc = await this.getLocation(params.locationId);
+        locationPath = (loc as any)?.tiLocationCode ?? (loc as any)?.tiLocationName ?? locationPath;
+      } catch {}
+      columns.push({ name: 'cmbLocation', filter: { contains: locationPath } });
+    }
+    const pageSize = params?.pageSize ?? 100;
+    const url = `/quicksearch/items?pageNumber=${params?.pageNumber ?? 0}&pageSize=${pageSize}`;
+    const res = await this.post<any>(url, {
+      columns,
+      selectedColumns: [
+        { name: 'id' }, { name: 'tiName' }, { name: 'cmbLocation' }, { name: 'cmbStatus' },
+        { name: 'cmbModel' }, { name: 'cmbMake' }, { name: 'tiRUs' },
+      ],
     });
-    return res.cabinets ?? res.data ?? [];
+    this.trackSearchMeta(res, pageSize);
+    return res.searchResults?.items ?? res.items ?? [];
   }
 
   async getCabinet(cabinetId: number): Promise<DcTrackCabinet | null> {
-    const res = await this.get<any>(`/dcimoperations/cabinets/${cabinetId}`);
-    return res.cabinet ?? res;
+    // Get cabinet details via quicksearch by ID
+    const res = await this.post<any>('/quicksearch/items?pageSize=1', {
+      columns: [{ name: 'id', filter: { eq: String(cabinetId) } }],
+      selectedColumns: [
+        { name: 'tiName' }, { name: 'cmbLocation' }, { name: 'cmbStatus' },
+        { name: 'tiRUs' }, { name: 'cmbMake' }, { name: 'cmbModel' },
+      ],
+    });
+    const items = res.searchResults?.items ?? [];
+    return items[0] ?? null;
   }
 
   async getCabinetItems(cabinetId: number): Promise<DcTrackItem[]> {
-    const res = await this.get<any>(`/dcimoperations/cabinets/${cabinetId}/items`);
-    return res.items ?? res.data ?? [];
+    const res = await this.get<any>(`/items/cabinetItems/${cabinetId}`);
+    return res.cabinetItems ?? res.items ?? res.data ?? [];
   }
 
   async getCabinetCapacity(cabinetId: number): Promise<DcTrackCapacity | null> {
-    const res = await this.get<any>(`/capacity/cabinets/${cabinetId}`);
-    return res.capacity ?? res;
+    // Build capacity from cabinet details + installed items count
+    const cabinet = await this.getCabinet(cabinetId);
+    if (!cabinet) return null;
+
+    const items = await this.getCabinetItems(cabinetId);
+    const totalRu = Number(cabinet.ruHeight) || 42;
+    const usedRu = items.reduce((sum: number, item: any) => sum + (Number(item.tiRackUnits) || 0), 0);
+    const availableRu = totalRu - usedRu;
+
+    return {
+      cabinetId,
+      totalRu,
+      usedRu,
+      availableRu,
+      ratedPowerKw: 0,
+      spaceUtilizationPercent: totalRu > 0 ? Math.round((usedRu / totalRu) * 100) : 0,
+      installedItems: items.length,
+    } as any;
   }
 
   async searchItems(params: {
@@ -81,37 +138,24 @@ export class DcTrackClient extends BaseClient {
     pageSize?: number;
     pageNumber?: number;
   }): Promise<DcTrackItem[]> {
-    const payload = {
-      columns: [
-        { name: 'tiName' },
-        { name: 'tiSerialNumber' },
-        { name: 'tiAssetTag' },
-        { name: 'cmbLocation' },
-        { name: 'cmbCabinet' },
-        { name: 'tiClass' },
-        { name: 'cmbStatus' },
-        { name: 'tiUPosition' },
-        { name: 'tiMake' },
-        { name: 'tiModel' },
-      ],
+    // Build quicksearch v2 payload using the correct column/filter format
+    const columns: any[] = [];
+    if (params.query) columns.push({ name: 'tiMultiField', filter: { eq: params.query } });
+    if (params.class) columns.push({ name: 'tiClass', filter: { eq: params.class } });
+    if (params.status) columns.push({ name: 'cmbStatus', filter: { eq: params.status } });
+    if (params.locationId) columns.push({ name: 'cmbLocation', filter: { eq: String(params.locationId) } });
+
+    const pageSize = params.pageSize ?? 50;
+    const url = `/quicksearch/items?pageNumber=${params.pageNumber ?? 0}&pageSize=${pageSize}`;
+    const res = await this.post<any>(url, {
+      columns,
       selectedColumns: [
-        { name: 'tiName' },
-        { name: 'tiSerialNumber' },
-        { name: 'cmbLocation' },
-        { name: 'cmbCabinet' },
-        { name: 'tiClass' },
-        { name: 'cmbStatus' },
+        { name: 'id' }, { name: 'tiName' }, { name: 'cmbLocation' }, { name: 'cmbCabinet' },
+        { name: 'tiClass' }, { name: 'cmbStatus' }, { name: 'tiSerialNumber' },
+        { name: 'cmbMake' }, { name: 'cmbModel' }, { name: 'tiRUs' },
       ],
-      filters: {} as Record<string, any>,
-      pageSize: params.pageSize ?? 50,
-      pageNumber: params.pageNumber ?? 0,
-    };
-
-    if (params.query) payload.filters['tiName'] = { contains: params.query };
-    if (params.class) payload.filters['tiClass'] = { eq: params.class };
-    if (params.status) payload.filters['cmbStatus'] = { eq: params.status };
-
-    const res = await this.post<any>('/quicksearch/items', payload);
+    });
+    this.trackSearchMeta(res, pageSize);
     return res.searchResults?.items ?? res.items ?? [];
   }
 
@@ -124,13 +168,42 @@ export class DcTrackClient extends BaseClient {
     itemId?: number;
     pageSize?: number;
   }): Promise<DcTrackConnection[]> {
-    const res = await this.get<any>('/dcimoperations/connections', params as any);
-    return res.connections ?? res.data ?? [];
+    if (!params?.itemId) {
+      // No list-all-connections endpoint exists; return helpful message
+      return [];
+    }
+    // Get connections for a specific item by fetching its data ports (which include connection info)
+    const dataPorts = await this.listDataPorts(params.itemId);
+    const powerPorts = await this.listPowerPorts(params.itemId);
+    const connections: DcTrackConnection[] = [];
+    for (const port of [...dataPorts, ...powerPorts]) {
+      if ((port as any).connectedToItemId || (port as any).connectedPortId) {
+        connections.push({
+          id: (port as any).portId ?? (port as any).id,
+          sourceItemName: String(params.itemId),
+          sourcePortName: (port as any).portName ?? (port as any).name,
+          destItemName: (port as any).connectedToItemName ?? '',
+          destPortName: (port as any).connectedPortName ?? '',
+          connectionType: (port as any).portType ?? 'data',
+        } as any);
+      }
+    }
+    return connections;
   }
 
   async getConnection(connectionId: number): Promise<DcTrackConnection | null> {
-    const res = await this.get<any>(`/dcimoperations/connections/${connectionId}`);
-    return res.connection ?? res;
+    // Try data connection first, then power connection
+    try {
+      const res = await this.get<any>(`/connections/dataconnections/${connectionId}`);
+      return res.dataConnection ?? res.connection ?? res;
+    } catch {
+      try {
+        const res = await this.get<any>(`/connections/powerconnections/${connectionId}`);
+        return res.powerConnection ?? res.connection ?? res;
+      } catch {
+        return null;
+      }
+    }
   }
 
   async listModels(params?: {
@@ -138,15 +211,22 @@ export class DcTrackClient extends BaseClient {
     make?: string;
     pageSize?: number;
   }): Promise<DcTrackModel[]> {
-    const res = await this.get<any>('/dcimoperations/models', {
-      ...params,
-      pageSize: params?.pageSize ?? 100,
+    // No dedicated list endpoint — use quicksearch/models
+    const columns: any[] = [];
+    if (params?.class) columns.push({ name: 'class', filter: { eq: params.class } });
+    if (params?.make) columns.push({ name: 'make', filter: { eq: params.make } });
+    const pageSize = params?.pageSize ?? 100;
+    const url = `/quicksearch/models?pageNumber=0&pageSize=${pageSize}`;
+    const res = await this.post<any>(url, {
+      columns,
+      selectedColumns: [{ name: 'model' }, { name: 'make' }, { name: 'class' }, { name: 'mounting' }, { name: 'formFactor' }, { name: 'ruHeight' }],
     });
-    return res.models ?? res.data ?? [];
+    this.trackSearchMeta(res, pageSize);
+    return res.searchResults?.models ?? res.models ?? [];
   }
 
   async getModel(modelId: number): Promise<DcTrackModel | null> {
-    const res = await this.get<any>(`/dcimoperations/models/${modelId}`);
+    const res = await this.get<any>(`/models/${modelId}?usedCounts=true`);
     return res.model ?? res;
   }
 
@@ -179,13 +259,13 @@ export class DcTrackClient extends BaseClient {
     if (item.cmbStatus) payload.cmbStatus = item.cmbStatus;
     if (item.customFields) Object.assign(payload, item.customFields);
 
-    const res = await this.post<any>('/dcimoperations/items', payload);
+    const res = await this.post<any>('/dcimoperations/items?returnDetails=true&proceedOnWarning=true', payload);
     logger.info({ itemName: item.tiName }, 'Item created');
     return res.item ?? res;
   }
 
   async updateItem(itemId: number, updates: Record<string, any>): Promise<DcTrackItem> {
-    const res = await this.put<any>(`/dcimoperations/items/${itemId}`, updates);
+    const res = await this.put<any>(`/dcimoperations/items/${itemId}?returnDetails=true&proceedOnWarning=true`, updates);
     logger.info({ itemId }, 'Item updated');
     return res.item ?? res;
   }
@@ -226,18 +306,37 @@ export class DcTrackClient extends BaseClient {
     cableId?: string;
     connectionType?: string;
   }): Promise<DcTrackConnection> {
-    const payload: Record<string, any> = {
-      sourceItemId: connection.sourceItemId,
-      destItemId: connection.destItemId,
-    };
-    if (connection.sourcePortId) payload.sourcePortId = connection.sourcePortId;
-    if (connection.sourcePortName) payload.sourcePortName = connection.sourcePortName;
-    if (connection.destPortId) payload.destPortId = connection.destPortId;
-    if (connection.destPortName) payload.destPortName = connection.destPortName;
-    if (connection.cableId) payload.cableId = connection.cableId;
-    if (connection.connectionType) payload.connectionType = connection.connectionType;
+    // Resolve item names/locations from IDs for the API
+    let startItem: any = null;
+    let endItem: any = null;
+    try {
+      startItem = await this.getItem(connection.sourceItemId);
+      endItem = await this.getItem(connection.destItemId);
+    } catch {
+      // If we can't resolve items, try with IDs
+    }
 
-    const res = await this.post<any>('/dcimoperations/connections', payload);
+    const payload: Record<string, any> = {};
+    if (startItem) {
+      payload.startingItemName = startItem.tiName;
+      payload.startingItemLocation = startItem.cmbLocation ?? startItem.tiLocationName;
+    }
+    if (endItem) {
+      payload.endingItemName = endItem.tiName;
+      payload.endingItemLocation = endItem.cmbLocation ?? endItem.tiLocationName;
+    }
+    if (connection.sourcePortName) payload.startingPortName = connection.sourcePortName;
+    if (connection.destPortName) payload.endingPortName = connection.destPortName;
+    if (connection.cableId) {
+      payload.cordList = [{ cordId: connection.cableId, cordType: 'PatchCord' }];
+    }
+    payload.proceedOnWarning = true;
+
+    // Use dataconnections for Network/Fiber/Serial/KVM, powerconnections for Power
+    const isPower = connection.connectionType === 'Power';
+    const endpoint = isPower ? '/connections/powerconnections' : '/connections/dataconnections';
+
+    const res = await this.post<any>(endpoint, payload);
     logger.info(
       { src: connection.sourceItemId, dest: connection.destItemId },
       'Connection created',
@@ -248,7 +347,12 @@ export class DcTrackClient extends BaseClient {
   async deleteConnection(
     connectionId: number,
   ): Promise<{ success: boolean; message: string }> {
-    await this.del<any>(`/dcimoperations/connections/${connectionId}`);
+    // Try data connection first, fallback to power connection
+    try {
+      await this.del<any>(`/connections/dataconnections/${connectionId}`);
+    } catch {
+      await this.del<any>(`/connections/powerconnections/${connectionId}`);
+    }
     logger.info({ connectionId }, 'Connection deleted');
     return { success: true, message: `Connection ${connectionId} deleted` };
   }
@@ -262,17 +366,38 @@ export class DcTrackClient extends BaseClient {
     assignee?: string;
     priority?: string;
   }): Promise<any> {
-    const payload: Record<string, any> = {
-      tiRequestType: request.requestType,
-      tiSummary: request.summary,
+    // dcTrack requests use /dcimoperations/requests endpoint
+    // Supported request types: InstallItem, PlanforDecommission, MoveItem, etc.
+    const requestTypeMap: Record<string, string> = {
+      Install: 'InstallItem',
+      Move: 'MoveItem',
+      Decommission: 'PlanforDecommission',
+      PowerOn: 'PowerOn',
+      PowerOff: 'PowerOff',
+      Other: 'Other',
     };
-    if (request.description) payload.tiDescription = request.description;
-    if (request.itemIds) payload.itemIds = request.itemIds;
-    if (request.scheduledDate) payload.tiScheduledDate = request.scheduledDate;
-    if (request.assignee) payload.cmbAssignee = request.assignee;
-    if (request.priority) payload.cmbPriority = request.priority;
 
-    const res = await this.post<any>('/requests', payload);
+    const payload: Record<string, any> = {
+      requestType: requestTypeMap[request.requestType] ?? request.requestType,
+      comments: request.summary + (request.description ? ` - ${request.description}` : ''),
+    };
+    const itemIds = request.itemIds;
+    if (itemIds && itemIds.length > 0) {
+      const firstItemId = itemIds[0]!;
+      payload.itemId = firstItemId;
+      // Try to resolve item name
+      try {
+        const item = await this.getItem(firstItemId);
+        payload.itemName = (item as any)?.tiName;
+      } catch {
+        // ok
+      }
+    }
+    if (request.scheduledDate) payload.dueDate = request.scheduledDate;
+    if (request.priority) payload.priority = request.priority.toLowerCase();
+    if (request.assignee) payload.requestedBy = request.assignee;
+
+    const res = await this.post<any>('/dcimoperations/requests', payload);
     logger.info({ summary: request.summary }, 'Change request created');
     return res.request ?? res;
   }
@@ -281,13 +406,20 @@ export class DcTrackClient extends BaseClient {
     requestId: number,
     updates: { status?: string; comments?: string },
   ): Promise<any> {
-    const payload: Record<string, any> = {};
-    if (updates.status) payload.cmbStatus = updates.status;
-    if (updates.comments) payload.tiComments = updates.comments;
-
-    const res = await this.put<any>(`/requests/${requestId}`, payload);
-    logger.info({ requestId }, 'Change request updated');
-    return res.request ?? res;
+    if (updates.status === 'Completed' || updates.status === 'Complete') {
+      // Use the set-to-complete endpoint
+      const res = await this.put<any>(`/dcimoperations/requests/${requestId}/complete`, {});
+      logger.info({ requestId }, 'Change request completed');
+      return res;
+    }
+    if (updates.status === 'Cancelled' || updates.status === 'Canceled') {
+      // Cancel = delete
+      await this.del<any>(`/dcimoperations/requests/${requestId}`);
+      logger.info({ requestId }, 'Change request cancelled');
+      return { success: true, message: `Request ${requestId} cancelled` };
+    }
+    // For other updates, not directly supported — return info
+    return { requestId, message: 'Request status updates are managed through Complete or Cancel operations in dcTrack' };
   }
 
   async bulkImport(
@@ -344,25 +476,40 @@ export class DcTrackClient extends BaseClient {
   async createCabinet(cabinet: {
     name: string;
     locationId: number;
+    make?: string;
+    model?: string;
     modelId?: number;
     ruHeight?: number;
     ratedPowerKw?: number;
     rowPosition?: number;
     customFields?: Record<string, any>;
+    [key: string]: any;
   }): Promise<DcTrackCabinet> {
+    // Cabinets are created through the items API — there is no /dcimoperations/cabinets endpoint
+    // Need full location path (e.g., "ORSTED > ROOM 01"), not just name
+    let locationName: string;
+    try {
+      const loc = await this.getLocation(cabinet.locationId);
+      locationName = (loc as any)?.tiLocationCode ?? (loc as any)?.cmbLocation ?? (loc as any)?.tiLocationName ?? (loc as any)?.name ?? String(cabinet.locationId);
+    } catch {
+      locationName = String(cabinet.locationId);
+    }
+
     const payload: Record<string, any> = {
       tiName: cabinet.name,
-      cmbLocation: cabinet.locationId,
-      tiRuHeight: cabinet.ruHeight ?? 42,
+      cmbLocation: locationName,
     };
+    // Make & model by name — dcTrack resolves these to IDs internally
+    if (cabinet.make) payload.cmbMake = cabinet.make;
+    if (cabinet.model) payload.cmbModel = cabinet.model;
     if (cabinet.modelId) payload.cmbModel = cabinet.modelId;
     if (cabinet.ratedPowerKw) payload.tiRatedPowerKw = cabinet.ratedPowerKw;
-    if (cabinet.rowPosition) payload.tiRowPosition = cabinet.rowPosition;
+    if (cabinet.rowPosition) payload.cmbRowPosition = cabinet.rowPosition;
     if (cabinet.customFields) Object.assign(payload, cabinet.customFields);
 
-    const res = await this.post<any>('/dcimoperations/cabinets', payload);
+    const res = await this.post<any>('/dcimoperations/items?returnDetails=true&proceedOnWarning=true', payload);
     logger.info({ cabinetName: cabinet.name }, 'Cabinet created');
-    return res.cabinet ?? res;
+    return res.item ?? res;
   }
 
   async createLocation(location: {
@@ -376,19 +523,41 @@ export class DcTrackClient extends BaseClient {
     country?: string;
     customFields?: Record<string, any>;
   }): Promise<DcTrackLocation> {
-    const payload: Record<string, any> = {
-      tiName: location.name,
-      cmbType: location.type,
+    // Location creation uses v1 API — resolve parent location code from parentId
+    let parentLocationCode: string | undefined;
+    if (location.parentId) {
+      try {
+        const parent = await this.getLocation(location.parentId);
+        parentLocationCode = (parent as any)?.tiLocationCode ?? (parent as any)?.tiLocationName ?? (parent as any)?.name;
+      } catch {
+        // fallback: just use the ID
+      }
+    }
+
+    // Map user-friendly type to dcTrack hierarchy level
+    const hierarchyMap: Record<string, string> = {
+      Site: 'DataCenter',
+      Building: 'Building',
+      Floor: 'Floor',
+      Room: 'Room',
+      Aisle: 'Aisle',
+      Row: 'Row',
     };
-    if (location.parentId) payload.cmbParent = location.parentId;
-    if (location.code) payload.tiCode = location.code;
-    if (location.address) payload.tiAddress = location.address;
-    if (location.city) payload.tiCity = location.city;
-    if (location.state) payload.tiState = location.state;
-    if (location.country) payload.tiCountry = location.country;
+
+    const payload: Record<string, any> = {
+      tiLocationName: location.name,
+      cmbHierarchyLevel: hierarchyMap[location.type] ?? location.type,
+    };
+    if (parentLocationCode) payload.tiParentLocationCode = parentLocationCode;
+    if (location.code) payload.tiLocationCode = location.code;
+    if (location.address) payload.cmbAddressLine1 = location.address;
+    if (location.city) payload.cmbAddressCity = location.city;
+    if (location.state) payload.cmbAddressState = location.state;
+    if (location.country) payload.cmbAddressCountry = location.country;
     if (location.customFields) Object.assign(payload, location.customFields);
 
-    const res = await this.post<any>('/dcimoperations/locations', payload);
+    // v1 API — need to go up one level from /api/v2
+    const res = await this.post<any>('/../v1/locations?proceedOnWarning=true', payload);
     logger.info({ locationName: location.name, type: location.type }, 'Location created');
     return res.location ?? res;
   }
@@ -430,8 +599,9 @@ export class DcTrackClient extends BaseClient {
   }
 
   async getMake(makeId: number): Promise<DcTrackMake | null> {
-    const res = await this.get<any>(`/makes/${makeId}`);
-    return res.make ?? res;
+    // No GET /makes/{id} endpoint — filter from full list
+    const all = await this.listMakes();
+    return all.find((m: any) => m.makeId === makeId) ?? null;
   }
 
   async createMake(make: { makeName: string; accountNumber?: string; aliases?: string[]; notes?: string }): Promise<DcTrackMake> {
@@ -462,7 +632,7 @@ export class DcTrackClient extends BaseClient {
   // =======================================================================
 
   async createModel(model: Record<string, any>): Promise<DcTrackModel> {
-    const res = await this.post<any>('/models?returnDetails=true&proceedOnWarning=false', model);
+    const res = await this.post<any>('/models?returnDetails=true&proceedOnWarning=true', model);
     logger.info({ model: model.model }, 'Model created');
     return res;
   }
@@ -542,10 +712,24 @@ export class DcTrackClient extends BaseClient {
   // =======================================================================
 
   async getPowerChainForLocation(locationId: number, nodeFields?: string[]): Promise<any> {
-    const res = await this.post<any>(`/powerChain/${locationId}`, {
-      nodeFields: nodeFields ?? ['tiName', 'cmbLocation', 'tiClass'],
-    });
-    return res;
+    try {
+      const res = await this.post<any>(`/powerChain/${locationId}`, {
+        nodeFields: nodeFields ?? ['tiName', 'cmbLocation', 'tiClass'],
+      });
+      return res;
+    } catch (err: any) {
+      // Power chain may not be configured for all locations — return friendly message
+      const msg = err?.message ?? String(err);
+      if (msg.includes('500') || msg.includes('Server error') || err?.statusCode >= 500) {
+        return {
+          status: 'not_configured',
+          locationId,
+          powerChain: [],
+          summary: `The power chain is not configured for location ${locationId} in dcTrack. This means power distribution paths have not been set up for this location. To view power chain data, the dcTrack administrator needs to configure the power chain for this location first.`,
+        };
+      }
+      throw err;
+    }
   }
 
   async getActualReadingsByItem(itemId: number): Promise<DcTrackActualReading[]> {
@@ -582,13 +766,23 @@ export class DcTrackClient extends BaseClient {
     minAvailableRUs?: number;
     minAvailablePowerKw?: number;
   }): Promise<any[]> {
-    const payload: Record<string, any> = {};
-    if (params.locationIds) payload.locationIds = params.locationIds;
-    if (params.minAvailableRUs) payload.minAvailableRUs = params.minAvailableRUs;
-    if (params.minAvailablePowerKw) payload.minAvailablePowerKw = params.minAvailablePowerKw;
-
-    const res = await this.post<any>('/capacity/cabinets/list/search', payload);
-    return res.cabinets ?? res.data ?? [];
+    // No reliable dedicated endpoint — compute from cabinet list + capacity
+    const cabinets = await this.listCabinets({ pageSize: 200 });
+    const results: any[] = [];
+    for (const cab of cabinets) {
+      const cap = await this.getCabinetCapacity(Number(cab.id));
+      if (!cap) continue;
+      const meetsSpace = !params.minAvailableRUs || cap.availableRu >= params.minAvailableRUs;
+      if (meetsSpace) {
+        results.push({
+          cabinetId: Number(cab.id), cabinetName: (cab as any).tiName,
+          location: (cab as any).cmbLocation,
+          totalRu: cap.totalRu, availableRu: cap.availableRu, usedRu: cap.usedRu,
+          spaceUtilization: cap.spaceUtilizationPercent,
+        });
+      }
+    }
+    return results;
   }
 
   async findAvailableUPositions(params: {
@@ -617,7 +811,37 @@ export class DcTrackClient extends BaseClient {
   }
 
   async createSubLocation(subLocation: Record<string, any>): Promise<DcTrackSubLocation> {
-    const res = await this.post<any>('/subLocations', subLocation);
+    // Sub-location API requires a very specific nested format
+    let locationValue: string | undefined;
+    const locationId = subLocation.locationId;
+    if (locationId) {
+      try {
+        const loc = await this.getLocation(locationId);
+        locationValue = (loc as any)?.tiLocationCode ?? (loc as any)?.tiLocationName ?? (loc as any)?.name;
+      } catch {
+        locationValue = String(locationId);
+      }
+    }
+
+    const payload: Record<string, any> = {
+      cmbLocation: {
+        label: 'Location',
+        value: { id: locationId, value: locationValue ?? String(locationId) },
+      },
+      tiSubLocationName: {
+        label: 'Name',
+        value: subLocation.name,
+      },
+      cmbSubLocationType: {
+        label: 'Type',
+        value: { value: subLocation.type ?? 'Aisle' },
+      },
+    };
+    if (subLocation.powerCapacity) {
+      payload.tiPowerCapacity = { label: 'Capacity (kW)', value: subLocation.powerCapacity };
+    }
+
+    const res = await this.post<any>('/subLocations', payload);
     logger.info({ name: subLocation.name }, 'Sub-location created');
     return res.subLocation ?? res;
   }
@@ -889,12 +1113,25 @@ export class DcTrackClient extends BaseClient {
     pageSize?: number;
   }): Promise<any> {
     const url = `/quicksearch/auditTrail?pageNumber=${params.pageNumber ?? 0}&pageSize=${params.pageSize ?? 50}`;
-    return this.post<any>(url, {
-      columns: params.columns ?? [],
-      selectedColumns: params.selectedColumns ?? [
-        { name: 'entityType' }, { name: 'changeType' }, { name: 'changedBy' }, { name: 'changedOn' },
-      ],
-    });
+    try {
+      return await this.post<any>(url, {
+        columns: params.columns ?? [],
+        selectedColumns: params.selectedColumns ?? [
+          { name: 'action' }, { name: 'changedBy' }, { name: 'changedDate' },
+          { name: 'entityName' }, { name: 'entityType' },
+        ],
+      });
+    } catch (err: any) {
+      const msg = err?.message ?? String(err);
+      if (msg.includes('400')) {
+        return {
+          status: 'not_available',
+          summary: 'The audit trail feature is not accessible with the current API credentials. This may require additional dcTrack licensing or the API user may need audit trail permissions enabled by an administrator.',
+          searchResults: { auditTrail: [] }, totalRows: 0,
+        };
+      }
+      throw err;
+    }
   }
 
   async getAuditTrailFieldList(): Promise<any[]> {
@@ -1094,7 +1331,8 @@ export class DcTrackClient extends BaseClient {
 
   async testConnection(): Promise<boolean> {
     try {
-      await this.listLocations({ pageSize: 1 });
+      // Use /makes as a lightweight v2 endpoint to verify connectivity
+      await this.get<any>('/makes');
       return true;
     } catch {
       return false;
