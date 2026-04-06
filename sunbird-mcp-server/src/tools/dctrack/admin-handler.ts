@@ -25,7 +25,7 @@ const searchAuditTrailSchema = z.object({
   filters: z.any().optional(),
   selectedColumns: z.array(z.record(z.any())).optional(),
   pageNumber: z.number().default(0),
-  pageSize: z.number().default(50),
+  pageSize: z.number().default(1000),
 });
 
 // CHARTS

@@ -21,7 +21,7 @@ const deleteTicketSchema = z.object({ ticketId: z.number() });
 const searchTicketsSchema = z.object({
   filters: z.any().optional(),
   pageNumber: z.number().default(0),
-  pageSize: z.number().default(50),
+  pageSize: z.number().default(1000),
 });
 const assignTicketEntitySchema = z.object({
   entityType: z.string(),

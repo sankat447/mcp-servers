@@ -85,6 +85,39 @@ export async function handleDcTrackReadTool(
       return dctrackClient.getCabinetCapacity(cabId);
     }
 
+    case 'dctrack_list_cabinets_with_capacity': {
+      const capArgs = schemas.listCabinetsWithCapacitySchema.parse(args);
+      const cabinets = await dctrackClient.listCabinets({
+        location: capArgs.location,
+        locationId: capArgs.locationId,
+      });
+      // Fetch capacity for each cabinet in parallel
+      const results = await Promise.all(
+        cabinets.map(async (cab: any) => {
+          const id = Number(cab.id);
+          const capacity = await dctrackClient.getCabinetCapacity(id);
+          return {
+            id: cab.id,
+            name: cab.tiName,
+            location: cab.cmbLocation,
+            status: cab.cmbStatus,
+            make: cab.cmbMake,
+            model: cab.cmbModel,
+            totalRu: capacity?.totalRu ?? 0,
+            usedRu: capacity?.usedRu ?? 0,
+            availableRu: capacity?.availableRu ?? 0,
+            spaceUtilizationPercent: capacity?.spaceUtilizationPercent ?? 0,
+            installedItems: (capacity as any)?.installedItems ?? 0,
+          };
+        }),
+      );
+      // Apply minAvailableRu filter if specified
+      const filtered = capArgs.minAvailableRu
+        ? results.filter((r) => r.availableRu >= capArgs.minAvailableRu!)
+        : results;
+      return { data: filtered, totalRows: filtered.length, showing: filtered.length, pageSize: 1000 };
+    }
+
     case 'dctrack_search_items': {
       const data = await dctrackClient.searchItems(schemas.searchItemsSchema.parse(args));
       return wrapWithPagination(data);

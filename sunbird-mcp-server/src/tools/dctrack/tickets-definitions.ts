@@ -57,7 +57,7 @@ export const dctrackTicketsToolDefinitions = [
       properties: {
         filters: { type: 'object', description: 'Search filters - array of {name, filter: {eq/lt/gt/in}} objects' },
         pageNumber: { type: 'number', description: 'Page number (0-based)', default: 0 },
-        pageSize: { type: 'number', description: 'Results per page', default: 50 },
+        pageSize: { type: 'number', description: 'Results per page', default: 1000 },
       },
       required: [],
     },

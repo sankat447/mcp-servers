@@ -10,7 +10,7 @@ export const listLocationsSchema = z.object({
     .enum(['Site', 'Building', 'Floor', 'Room', 'Aisle', 'Row'])
     .optional()
     .describe('Filter by location type'),
-  pageSize: z.number().default(50).describe('Number of results per page'),
+  pageSize: z.number().default(1000).describe('Number of results per page'),
 });
 
 export const getLocationSchema = z.object({
@@ -18,8 +18,9 @@ export const getLocationSchema = z.object({
 });
 
 export const listCabinetsSchema = z.object({
+  location: z.string().optional().describe('Filter by location name (e.g. "AI-ROOM-01"). Preferred over locationId.'),
   locationId: z.number().optional().describe('Filter by location ID'),
-  pageSize: z.number().default(50).describe('Number of results per page'),
+  pageSize: z.number().default(1000).describe('Number of results per page'),
 });
 
 export const getCabinetSchema = z.object({
@@ -41,19 +42,27 @@ export const getCabinetCapacitySchema = z.object({
   cabinetName: z.string().optional().describe('The cabinet name to look up'),
 });
 
+export const listCabinetsWithCapacitySchema = z.object({
+  location: z.string().optional().describe('Filter by location name (e.g. "AI-ROOM-01")'),
+  locationId: z.number().optional().describe('Filter by location ID'),
+  minAvailableRu: z.number().optional().describe('Only return cabinets with at least this many free RU slots'),
+});
+
 export const searchItemsSchema = z.object({
-  query: z.string().optional().describe('Search query (name, serial number, asset tag)'),
+  query: z.string().optional().describe('Broad search query across multiple fields (name, serial number, asset tag). Use "name" instead for exact item name matching.'),
+  name: z.string().optional().describe('Exact item name filter (e.g. "AI-CAB-01"). Preferred over "query" when searching by item name.'),
   class: z
     .string()
     .optional()
     .describe('Filter by item class (Cabinet, Device, Network, Data Panel, Probe, Passive, CRAC, UPS, PDU, Floor PDU, Rack PDU, Power Outlet, etc.)'),
-  locationId: z.number().optional().describe('Filter by location ID'),
+  location: z.string().optional().describe('Filter by location name (e.g. "AI-ROOM-01"). Resolves to locationId automatically.'),
+  locationId: z.number().optional().describe('Filter by location ID (use "location" name instead if you have the name)'),
   cabinetId: z.number().optional().describe('Filter by cabinet ID'),
   status: z
     .enum(['Installed', 'Planned', 'PoweredOff', 'Storage', 'Archived'])
     .optional()
     .describe('Filter by status'),
-  pageSize: z.number().default(50).describe('Number of results per page'),
+  pageSize: z.number().default(1000).describe('Number of results per page'),
 });
 
 export const getItemSchema = z.object({
@@ -62,7 +71,7 @@ export const getItemSchema = z.object({
 
 export const listConnectionsSchema = z.object({
   itemId: z.number().optional().describe('Filter by item ID'),
-  pageSize: z.number().default(50).describe('Number of results per page'),
+  pageSize: z.number().default(1000).describe('Number of results per page'),
 });
 
 export const getConnectionSchema = z.object({
@@ -73,7 +82,7 @@ export const listModelsSchema = z.object({
   query: z.string().optional().describe('Search model name (partial match, e.g. "C6100")'),
   class: z.string().optional().describe('Filter by model class'),
   make: z.string().optional().describe('Filter by manufacturer'),
-  pageSize: z.number().default(100).describe('Number of results per page'),
+  pageSize: z.number().default(1000).describe('Number of results per page'),
 });
 
 export const getModelSchema = z.object({

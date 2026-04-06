@@ -15,7 +15,7 @@ const createPartModelSchema = z.object({ modelName: z.string(), make: z.string()
 const searchPartModelsSchema = z.object({
   filters: z.any().optional(),
   pageNumber: z.number().default(0),
-  pageSize: z.number().default(50),
+  pageSize: z.number().default(1000),
 });
 const getPartSchema = z.object({ partId: z.number() });
 const createPartSchema = z.object({
@@ -29,7 +29,7 @@ const deletePartSchema = z.object({ partId: z.number() });
 const searchPartsSchema = z.object({
   filters: z.any().optional(),
   pageNumber: z.number().default(0),
-  pageSize: z.number().default(50),
+  pageSize: z.number().default(1000),
 });
 const adjustStockSchema = z.object({
   partId: z.number(),

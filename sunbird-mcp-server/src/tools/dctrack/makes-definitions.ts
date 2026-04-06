@@ -7,7 +7,7 @@
 export const dctrackMakesToolDefinitions = [
   {
     name: 'dctrack_list_makes',
-    description: 'List all equipment manufacturers (makes) in dcTrack model library',
+    description: 'List ALL manufacturers (makes) — returns the full unfiltered list. Use dctrack_search_makes instead when searching by name.',
     inputSchema: { type: 'object' as const, properties: {}, required: [] },
   },
   {
@@ -56,10 +56,10 @@ export const dctrackMakesToolDefinitions = [
   },
   {
     name: 'dctrack_search_makes',
-    description: 'Search for makes by name (supports special characters)',
+    description: 'Search for a manufacturer/make by name. Use this when the user wants to find a specific make like "Dell", "Cisco", "APC". Returns matching makes only.',
     inputSchema: {
       type: 'object' as const,
-      properties: { searchString: { type: 'string', description: 'Search string for make name' } },
+      properties: { searchString: { type: 'string', description: 'Manufacturer name to search (e.g., "Dell", "Cisco")' } },
       required: ['searchString'],
     },
   },
@@ -113,7 +113,7 @@ export const dctrackMakesToolDefinitions = [
       properties: {
         filters: { type: 'object', description: 'Search filters - array of {name, filter: {eq/lt/gt/in}} objects' },
         pageNumber: { type: 'number', description: 'Page number (0-based)', default: 0 },
-        pageSize: { type: 'number', description: 'Results per page', default: 50 },
+        pageSize: { type: 'number', description: 'Results per page', default: 1000 },
       },
       required: [],
     },

@@ -17,7 +17,7 @@ export const dctrackReadToolDefinitions = [
           enum: ['Site', 'Building', 'Floor', 'Room', 'Aisle', 'Row'],
           description: 'Filter by location type',
         },
-        pageSize: { type: 'number', description: 'Number of results per page', default: 50 },
+        pageSize: { type: 'number', description: 'Number of results per page', default: 1000 },
       },
       required: [],
     },
@@ -35,12 +35,13 @@ export const dctrackReadToolDefinitions = [
   },
   {
     name: 'dctrack_list_cabinets',
-    description: 'List all cabinets/racks in dcTrack',
+    description: 'List all cabinets/racks in dcTrack. Use "location" parameter to filter by location name.',
     inputSchema: {
       type: 'object' as const,
       properties: {
+        location: { type: 'string', description: 'Filter by location name (e.g. "AI-ROOM-01"). Preferred over locationId.' },
         locationId: { type: 'number', description: 'Filter by location ID' },
-        pageSize: { type: 'number', description: 'Number of results per page', default: 50 },
+        pageSize: { type: 'number', description: 'Number of results per page', default: 1000 },
       },
       required: [],
     },
@@ -93,24 +94,39 @@ export const dctrackReadToolDefinitions = [
     },
   },
   {
-    name: 'dctrack_search_items',
-    description: 'Search for items (devices, assets) in dcTrack using various criteria',
+    name: 'dctrack_list_cabinets_with_capacity',
+    description: 'PREFERRED for capacity questions. List cabinets with space metrics (total U, used U, available U, utilization %). Use this instead of dctrack_get_cabinet_capacity when asking about free space, available capacity, remaining room, or comparing cabinets. Returns ALL cabinets with capacity in a single call. Supports filtering by minAvailableRu.',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        query: { type: 'string', description: 'Search query (name, serial number, asset tag)' },
+        location: { type: 'string', description: 'Filter by location name (e.g. "AI-ROOM-01"). Preferred over locationId.' },
+        locationId: { type: 'number', description: 'Filter by location ID' },
+        minAvailableRu: { type: 'number', description: 'Only return cabinets with at least this many free RU slots (e.g. 10)' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'dctrack_search_items',
+    description: 'Search for items (devices, assets) in dcTrack. Use this for finding items by name, class, status, or location. This is the primary search tool — use it instead of dctrack_get_cabinet_items when searching across a location or for items by name.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        query: { type: 'string', description: 'Broad search across multiple fields (name, serial number, asset tag). Use "name" instead for exact item name matching.' },
+        name: { type: 'string', description: 'Exact item name filter (e.g. "AI-CAB-01"). Preferred over "query" when searching by item name.' },
         class: {
           type: 'string',
           description: 'Filter by item class (Cabinet, Device, Network, Data Panel, Probe, Passive, CRAC, UPS, PDU, Floor PDU, Rack PDU, Power Outlet, etc.)',
         },
-        locationId: { type: 'number', description: 'Filter by location ID' },
+        location: { type: 'string', description: 'Filter by location name (e.g. "AI-ROOM-01"). Resolves to locationId automatically.' },
+        locationId: { type: 'number', description: 'Filter by location ID (use "location" name instead if you have the name)' },
         cabinetId: { type: 'number', description: 'Filter by cabinet ID' },
         status: {
           type: 'string',
           enum: ['Installed', 'Planned', 'PoweredOff', 'Storage', 'Archived'],
           description: 'Filter by status',
         },
-        pageSize: { type: 'number', description: 'Number of results per page', default: 50 },
+        pageSize: { type: 'number', description: 'Number of results per page', default: 1000 },
       },
       required: [],
     },
@@ -133,7 +149,7 @@ export const dctrackReadToolDefinitions = [
       type: 'object' as const,
       properties: {
         itemId: { type: 'number', description: 'Filter by item ID' },
-        pageSize: { type: 'number', description: 'Number of results per page', default: 50 },
+        pageSize: { type: 'number', description: 'Number of results per page', default: 1000 },
       },
       required: [],
     },
@@ -158,7 +174,7 @@ export const dctrackReadToolDefinitions = [
         query: { type: 'string', description: 'Search model name (partial match, e.g. "C6100")' },
         class: { type: 'string', description: 'Filter by model class' },
         make: { type: 'string', description: 'Filter by manufacturer' },
-        pageSize: { type: 'number', description: 'Number of results per page', default: 100 },
+        pageSize: { type: 'number', description: 'Number of results per page', default: 1000 },
       },
       required: [],
     },

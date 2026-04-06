@@ -277,6 +277,17 @@
         }
         .input-row textarea::placeholder { color: var(--text-muted); }
 
+        .new-chat-btn {
+            width: 44px; height: 44px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 12px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.15s;
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+        .new-chat-btn:hover { background: var(--bg-hover); color: var(--sunbird-orange); border-color: var(--border-highlight); }
         .send-btn {
             width: 44px; height: 44px;
             background: linear-gradient(135deg, var(--sunbird-orange), var(--sunbird-orange-dark));
@@ -367,6 +378,13 @@
         .data-empty-icon svg { width: 28px; height: 28px; stroke: var(--text-muted); fill: none; }
         .data-empty h3 { font-size: 0.95rem; color: var(--text-secondary); font-weight: 600; }
         .data-empty p { font-size: 0.8rem; text-align: center; max-width: 300px; line-height: 1.5; }
+        .data-empty.loading .data-empty-icon { border-color: var(--sunbird-orange); }
+        .data-empty.loading .data-empty-icon svg { animation: dv-spin 1.2s linear infinite; stroke: var(--sunbird-orange); }
+        .data-empty.loading h3 { color: var(--sunbird-orange); }
+        @keyframes dv-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
 
         /* Table */
         .data-table-wrapper { padding: 0; overflow: auto; }
@@ -507,6 +525,9 @@
 
             <div class="input-area">
                 <div class="input-row">
+                    <button class="new-chat-btn" id="newChatBtn" title="New Chat — clear conversation history">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    </button>
                     <textarea id="chatInput" rows="1" placeholder="Ask about your data center... (Shift+Enter for new line)"></textarea>
                     <button class="send-btn" id="sendBtn" title="Send message">
                         <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
@@ -579,6 +600,7 @@ const MCP_URL = 'https://sunbird-mcp.apps.ocp419.crucible.iisl.com';
 const messagesEl = document.getElementById('messages');
 const chatInput = document.getElementById('chatInput');
 const sendBtn = document.getElementById('sendBtn');
+const newChatBtn = document.getElementById('newChatBtn');
 const suggestionsEl = document.getElementById('suggestions');
 const toolBadge = document.getElementById('toolBadge');
 const dataStats = document.getElementById('dataStats');
@@ -601,6 +623,20 @@ chatInput.addEventListener('keydown', function(e) {
 });
 
 sendBtn.addEventListener('click', sendMessage);
+
+// New Chat button — clears history without full page refresh
+newChatBtn.addEventListener('click', function() {
+    messageHistory = [];
+    // Clear chat messages except the welcome message
+    const msgs = messagesEl.querySelectorAll('.message');
+    msgs.forEach((m, i) => { if (i > 0) m.remove(); });
+    clearDataViewer();
+    chatInput.value = '';
+    chatInput.focus();
+    // Brief visual feedback
+    this.style.color = 'var(--success)';
+    setTimeout(() => { this.style.color = ''; }, 600);
+});
 
 document.querySelectorAll('.suggestion').forEach(btn => {
     btn.addEventListener('click', function() {
@@ -716,6 +752,7 @@ async function sendMessage() {
     chatInput.style.height = 'auto';
     sendBtn.disabled = true;
     addTyping();
+    showDataViewerLoading();
 
     messageHistory.push({ role: 'user', content: msg });
 
@@ -778,13 +815,23 @@ async function sendMessage() {
             }
 
             if (!rawData) {
-                // Try re-fetch from MCP with correct args if available
-                if (toolArgs && !Array.isArray(toolArgs)) {
+                // Try re-fetch from MCP with correct args if available (read-only tools only)
+                const isWriteOp = /create|update|delete|move/i.test(toolUsed);
+                if (toolArgs && !Array.isArray(toolArgs) && !isWriteOp) {
                     addTyping();
                     try {
                         rawData = await fetchToolData(toolUsed.replace(/\s*\(x\d+\)$/, ''), toolArgs);
                         removeTyping();
                     } catch (e) { removeTyping(); rawData = null; }
+                }
+                // Re-run pagination detection on re-fetched data
+                if (rawData && !Array.isArray(rawData) && rawData.data && Array.isArray(rawData.data)) {
+                    paginationMeta = {
+                        totalRows: rawData.totalRows || rawData.data.length,
+                        showing: rawData.showing || rawData.data.length,
+                        pageSize: rawData.pageSize || rawData.data.length,
+                    };
+                    rawData = rawData.data;
                 }
             }
 
@@ -799,17 +846,19 @@ async function sendMessage() {
                 const count = rows ? rows.length : 0;
                 // Build smart pagination summary
                 let countStr = '';
-                if (paginationMeta && paginationMeta.totalRows > count) {
+                if (count === 0) {
+                    // No results — show meaningful message, don't point to Data Viewer
+                    countStr = ' — **No results found.**';
+                } else if (paginationMeta && paginationMeta.totalRows > 0) {
                     countStr = ' — showing **' + count + ' of ' + paginationMeta.totalRows.toLocaleString() + ' total**. See Data Viewer →';
-                } else if (count > 0) {
-                    countStr = ' — **' + count + ' result' + (count !== 1 ? 's' : '') + '**. See Data Viewer →';
                 } else {
-                    countStr = ' — See Data Viewer →';
+                    countStr = ' — **' + count + ' result' + (count !== 1 ? 's' : '') + '**. See Data Viewer →';
                 }
                 const chatMsg = shortSummary + countStr;
                 messageHistory.push({ role: 'assistant', content: chatMsg });
-                addMessage(chatMsg, false, rawData, toolUsed);
-                displayData(rawData, toolUsed);
+                addMessage(chatMsg, false, count > 0 ? rawData : null, toolUsed);
+                if (count > 0) displayData(rawData, toolUsed);
+                else clearDataViewer();
             } else {
                 // No raw data — show full LLM summary in chat, clear stale Data Viewer
                 clearDataViewer();
@@ -822,6 +871,10 @@ async function sendMessage() {
             messageHistory.push({ role: 'assistant', content: fullContent });
             addMessage(fullContent, false);
         }
+        // Always reset history after each response so the next prompt goes fresh to n8n.
+        // Chat messages stay visible in the UI (they're DOM elements, not tied to this array).
+        messageHistory = [];
+
     } catch (err) {
         removeTyping();
         addMessage('Error: ' + err.message, false);
@@ -878,18 +931,22 @@ function parseMarkdownTable(text) {
 
 // ─── Fetch raw data from MCP server directly ───
 async function fetchToolData(toolName, args) {
-    const res = await fetch(MCP_BASE + '/tools/' + toolName, {
+    const res = await fetch(MCP_BASE + '/mcp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(args || {})
+        body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'tools/call',
+            params: { name: toolName, arguments: args || {} }
+        })
     });
     if (!res.ok) throw new Error('MCP error: ' + res.status);
-    const data = await res.json();
-    // Unwrap {success: true, result: ...} wrapper if present
-    if (data && data.success === true && data.result !== undefined) {
-        return data.result;
-    }
-    return data;
+    const rpc = await res.json();
+    if (rpc.error) throw new Error(rpc.error.message || 'MCP RPC error');
+    const text = rpc.result?.content?.[0]?.text;
+    if (!text) return null;
+    try { return JSON.parse(text); } catch { return text; }
 }
 
 // ─── Generate short chat summary from tool name ───
@@ -1178,6 +1235,34 @@ function clearDataViewer() {
     jsonView.style.display = 'none';
     dataStats.style.display = 'none';
     toolBadge.classList.remove('visible');
+    resetDataViewerEmpty();
+}
+
+// ─── Data Viewer Loading State ───
+function showDataViewerLoading() {
+    currentRawData = null;
+    tableView.innerHTML = '';
+    tableView.style.display = 'none';
+    jsonView.innerHTML = '';
+    jsonView.style.display = 'none';
+    dataStats.style.display = 'none';
+    toolBadge.classList.remove('visible');
+    // Show spinner state
+    dataEmpty.style.display = 'flex';
+    dataEmpty.classList.add('loading');
+    dataEmpty.querySelector('h3').textContent = 'Processing…';
+    dataEmpty.querySelector('p').textContent = 'Waiting for results from the API.';
+    // Swap icon to a loader circle
+    dataEmpty.querySelector('.data-empty-icon').innerHTML =
+        '<svg viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182M20.016 4.356v4.992"/></svg>';
+}
+
+function resetDataViewerEmpty() {
+    dataEmpty.classList.remove('loading');
+    dataEmpty.querySelector('h3').textContent = 'No data yet';
+    dataEmpty.querySelector('p').textContent = 'Ask a question in the chat and the API response will appear here as a table with sortable columns.';
+    dataEmpty.querySelector('.data-empty-icon').innerHTML =
+        '<svg viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>';
 }
 
 // ─── Clear ───
@@ -1205,6 +1290,44 @@ async function checkHealth() {
 checkHealth();
 setInterval(checkHealth, 30000);
 chatInput.focus();
+
+// BroadcastChannel listener for demo prompt runner (cross-tab communication)
+try {
+    const demoChannel = new BroadcastChannel('dctrack-demo');
+    // Announce chat is ready
+    demoChannel.postMessage({ type: 'chat-ready' });
+    demoChannel.onmessage = (event) => {
+        if (event.data && event.data.type === 'ping') {
+            // Respond to pings so prompt runner knows we're connected
+            demoChannel.postMessage({ type: 'chat-ack' });
+        }
+        if (event.data && event.data.type === 'set-prompt') {
+            const text = event.data.text;
+            chatInput.value = '';
+            chatInput.focus();
+            chatInput.style.transition = 'box-shadow 0.3s';
+            chatInput.style.boxShadow = '0 0 12px rgba(247, 148, 29, 0.6)';
+            // Typewriter effect — character by character
+            let i = 0;
+            const speed = Math.max(15, Math.min(40, 1500 / text.length)); // adaptive speed, 1.5s total target
+            function typeNext() {
+                if (i < text.length) {
+                    chatInput.value += text[i];
+                    chatInput.style.height = 'auto';
+                    chatInput.style.height = chatInput.scrollHeight + 'px';
+                    i++;
+                    setTimeout(typeNext, speed);
+                } else {
+                    chatInput.style.boxShadow = '';
+                    demoChannel.postMessage({ type: 'chat-ack' });
+                }
+            }
+            typeNext();
+        }
+    };
+} catch (e) {
+    console.log('BroadcastChannel not supported:', e);
+}
 </script>
 </body>
 </html>

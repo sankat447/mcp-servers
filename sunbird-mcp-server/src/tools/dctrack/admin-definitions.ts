@@ -66,7 +66,7 @@ export const dctrackAdminToolDefinitions = [
         filters: { type: 'object', description: 'Search filters - array of {name, filter: {eq/lt/gt/in}} objects' },
         selectedColumns: { type: 'array', items: { type: 'object' }, description: 'Columns to return in results (optional)' },
         pageNumber: { type: 'number', description: 'Page number (0-based)', default: 0 },
-        pageSize: { type: 'number', description: 'Results per page', default: 50 },
+        pageSize: { type: 'number', description: 'Results per page', default: 1000 },
       },
       required: [],
     },

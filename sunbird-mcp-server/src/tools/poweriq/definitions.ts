@@ -12,7 +12,7 @@ export const poweriqToolDefinitions = [
       properties: {
         datacenterId: { type: 'number', description: 'Filter by data center ID' },
         cabinetId: { type: 'number', description: 'Filter by cabinet ID' },
-        pageSize: { type: 'number', default: 100 },
+        pageSize: { type: 'number', default: 1000 },
       },
       required: [],
     },
@@ -46,7 +46,7 @@ export const poweriqToolDefinitions = [
       properties: {
         sensorType: { type: 'string', enum: ['temperature', 'humidity', 'airflow', 'pressure'] },
         cabinetId: { type: 'number' },
-        pageSize: { type: 'number', default: 100 },
+        pageSize: { type: 'number', default: 1000 },
       },
       required: [],
     },
@@ -83,7 +83,7 @@ export const poweriqToolDefinitions = [
         severity: { type: 'string', enum: ['critical', 'warning', 'info'] },
         type: { type: 'string', enum: ['power', 'environmental', 'device', 'connectivity'] },
         acknowledged: { type: 'boolean' },
-        limit: { type: 'number', default: 100 },
+        limit: { type: 'number', default: 1000 },
       },
       required: [],
     },
@@ -95,7 +95,7 @@ export const poweriqToolDefinitions = [
       type: 'object' as const,
       properties: {
         cabinetId: { type: 'number' },
-        pageSize: { type: 'number', default: 100 },
+        pageSize: { type: 'number', default: 1000 },
       },
       required: [],
     },

@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Prompts | Sunbird DCIM AI Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --sunbird-orange: #F7941D;
+            --sunbird-orange-light: #FFAD4A;
+            --sunbird-orange-dark: #E07D00;
+            --iisl-blue: #1E3A5F;
+            --iisl-blue-light: #2C5282;
+            --bg-primary: #0A0E14;
+            --bg-secondary: #111821;
+            --bg-tertiary: #1A2332;
+            --bg-card: #151D2B;
+            --bg-hover: #1F2A3C;
+            --text-primary: #F0F4F8;
+            --text-secondary: #A0AEC0;
+            --text-muted: #718096;
+            --success: #48BB78;
+            --error: #FC8181;
+            --blue: #63B3ED;
+            --purple: #B794F4;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-highlight: rgba(247, 148, 29, 0.3);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* ── Header ── */
+        .header {
+            background: linear-gradient(135deg, var(--iisl-blue) 0%, var(--bg-secondary) 100%);
+            border-bottom: 1px solid var(--border-highlight);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .header-left h1 {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--sunbird-orange), var(--sunbird-orange-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header-left .subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .open-chat-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--sunbird-orange), var(--sunbird-orange-dark));
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .open-chat-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(247, 148, 29, 0.4);
+        }
+        .connection-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--error);
+            transition: background 0.3s;
+        }
+        .connection-dot.connected { background: var(--success); }
+
+        /* ── Progress bar ── */
+        .progress-bar {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            position: sticky;
+            top: 62px;
+            z-index: 99;
+        }
+        .progress-track {
+            flex: 1;
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--sunbird-orange), var(--success));
+            border-radius: 3px;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+        .progress-text {
+            font-size: 12px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        /* ── Content ── */
+        .content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px 32px 80px;
+        }
+
+        /* ── Phase Section ── */
+        .phase {
+            margin-bottom: 32px;
+        }
+        .phase-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            background: linear-gradient(135deg, var(--iisl-blue), var(--bg-tertiary));
+            border-radius: 10px;
+            margin-bottom: 2px;
+            cursor: pointer;
+            user-select: none;
+            border: 1px solid var(--border);
+            transition: border-color 0.2s;
+        }
+        .phase-header:hover {
+            border-color: var(--border-highlight);
+        }
+        .phase-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 28px;
+            padding: 0 8px;
+            background: var(--sunbird-orange);
+            color: #fff;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .phase-title {
+            font-size: 16px;
+            font-weight: 700;
+            flex: 1;
+        }
+        .phase-count {
+            font-size: 12px;
+            color: var(--text-muted);
+            background: var(--bg-primary);
+            padding: 4px 10px;
+            border-radius: 12px;
+        }
+        .phase-chevron {
+            color: var(--text-muted);
+            transition: transform 0.2s;
+            font-size: 14px;
+        }
+        .phase.collapsed .phase-chevron { transform: rotate(-90deg); }
+        .phase.collapsed .phase-body { display: none; }
+
+        /* ── Prompt Rows ── */
+        .phase-body {
+            border-left: 2px solid var(--border);
+            margin-left: 34px;
+            padding-left: 0;
+        }
+        .prompt-row {
+            display: flex;
+            align-items: stretch;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+            position: relative;
+        }
+        .prompt-row:hover {
+            background: var(--bg-hover);
+        }
+        .prompt-row.sent {
+            opacity: 0.5;
+        }
+        .prompt-row.sent .prompt-status::after {
+            content: '\2713';
+            color: var(--success);
+            font-size: 14px;
+            font-weight: 700;
+        }
+        .prompt-num {
+            width: 60px;
+            min-width: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .prompt-info {
+            flex: 1;
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 0;
+        }
+        .prompt-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .class-tag {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .class-tag.device { background: #2D3748; color: #63B3ED; }
+        .class-tag.network { background: #2D3748; color: #B794F4; }
+        .class-tag.rack-pdu { background: #2D3748; color: #FC8181; }
+        .class-tag.data-panel { background: #2D3748; color: #48BB78; }
+        .class-tag.passive { background: #2D3748; color: #A0AEC0; }
+        .class-tag.probe { background: #2D3748; color: #F6AD55; }
+        .class-tag.cabinet { background: #2D3748; color: #FFC107; }
+        .class-tag.ticket { background: #2D3748; color: #D6BCFA; }
+        .class-tag.query { background: #1A365D; color: #63B3ED; }
+        .class-tag.modify { background: #362A1A; color: #F6AD55; }
+        .class-tag.delete { background: #3B1A1A; color: #FC8181; }
+        .class-tag.verify { background: #1A362A; color: #48BB78; }
+
+        .prompt-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .prompt-expected {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+        .prompt-status {
+            width: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .send-prompt-btn {
+            width: 52px;
+            min-width: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            border-left: 1px solid var(--border);
+            cursor: pointer;
+            color: var(--sunbird-orange);
+            font-size: 20px;
+            transition: all 0.15s;
+        }
+        .send-prompt-btn:hover {
+            background: rgba(247, 148, 29, 0.1);
+            color: var(--sunbird-orange-light);
+        }
+        .send-prompt-btn:active {
+            background: rgba(247, 148, 29, 0.2);
+            transform: scale(0.95);
+        }
+        .send-prompt-btn.sent {
+            color: var(--success);
+            cursor: default;
+        }
+
+        /* ── Note rows ── */
+        .prompt-row.note-row {
+            background: rgba(247, 148, 29, 0.03);
+        }
+        .prompt-row.note-row .prompt-text {
+            background: rgba(247, 148, 29, 0.06);
+            border-color: var(--border-highlight);
+            color: var(--sunbird-orange-light);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-style: italic;
+        }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            border: 1px solid var(--border-highlight);
+            box-shadow: var(--shadow-md);
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            pointer-events: none;
+        }
+        .toast.visible {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .header { padding: 12px 16px; }
+            .content { padding: 16px; }
+            .prompt-num { width: 44px; min-width: 44px; font-size: 10px; }
+            .phase-body { margin-left: 22px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <div>
+            <h1>Demo Prompts</h1>
+            <div class="subtitle">Sunbird DCIM AI Assistant &mdash; Full Functionality Walkthrough</div>
+        </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px;">
+        <div class="connection-dot" id="connDot" title="Chat tab not connected"></div>
+        <button class="open-chat-btn" id="openChatBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Open Chat
+        </button>
+    </div>
+</div>
+
+<div class="progress-bar">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-text" id="progressText">0 / 0 prompts sent</div>
+</div>
+
+<div class="content" id="content"></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Data ───
+const PHASES = [
+  {
+    id: 'phase1', title: 'Verify Clean State', badge: '1',
+    prompts: [
+      { num: '1.1', label: 'List Locations', prompt: 'List all locations in dcTrack', expected: 'AI-DEMO-DC > AI-ROOM-01 visible in hierarchy.', tags: ['query'] },
+      { num: '1.2', label: 'Confirm Location Empty', prompt: 'Search for all items in location AI-ROOM-01', expected: 'No items found.', tags: ['verify'] },
+      { num: '1.3', label: 'Confirm No Cabinets', prompt: 'Find cabinets in AI-ROOM-01', expected: 'No cabinets found.', tags: ['verify'] },
+    ]
+  },
+  {
+    id: 'phase2', title: 'Create Infrastructure', badge: '2',
+    prompts: [
+      { num: '2.1', label: 'Bulk Create Cabinets', prompt: 'Create the following in AI-DEMO-DC in AI-ROOM-01:\n\nCabinets:\n- Cabinet AI-CAB-01 make Rittal model Orsted VX5311.116\n- Cabinet AI-CAB-02 make Rittal model Orsted VX5311.116\n- Cabinet AI-CAB-03 make Rittal model Orsted VX5311.116', expected: '3 cabinets created.', tags: ['cabinet'] },
+      { num: '2.2', label: 'Verify Cabinets', prompt: 'List all cabinets in AI-ROOM-01', expected: 'AI-CAB-01, AI-CAB-02, AI-CAB-03 visible.', tags: ['verify'] },
+      { num: '2.3', label: 'Bulk Create CAB-01 Items', prompt: 'Create the following items in cabinet AI-CAB-01, all status Planned:\n\n- "AI-PDU-A1" make APC model AP8861 class Rack PDU mounting ZeroU\n- "AI-PDU-A2" make APC model AP8865 class Rack PDU mounting ZeroU\n- "AI-PROBE-01" make Geist model RSE-B class Probe at U42\n- "AI-PATCH-01" make Panduit model "1RU-CP Panel RJ45 24-port CAT6" class Data Panel at U41\n- "AI-WM-01" make APC model "1RU-Wire Manager AR8602" class Passive at U40\n- "AI-SRV-01" make Dell model "PowerEdge R740" class Device at U1\n- "AI-SRV-02" make Dell model "PowerEdge R740" class Device at U3\n- "AI-SRV-03" make Dell model "PowerEdge R640" class Device at U5\n- "AI-SRV-04" make Dell model "PowerEdge R650" class Device at U6\n- "AI-BLANK-01" make APC model "1RU-Blanking Plate-APC" class Passive at U7', expected: '10 items created in CAB-01. 8U used + 2 ZeroU PDUs.', tags: ['device','rack-pdu','probe','data-panel','passive'] },
+      { num: '2.4', label: 'Bulk Create CAB-02 Items', prompt: 'Create the following items in cabinet AI-CAB-02, all status Planned:\n\n- "AI-PDU-B1" make APC model AP8841 class Rack PDU mounting ZeroU\n- "AI-PDU-B2" make APC model AP8841 class Rack PDU mounting ZeroU\n- "AI-TOR-01" make Cisco model "Nexus N9K-C9372PX" class Network at U42\n- "AI-TOR-02" make Cisco model "Nexus N9K-C93180YC-EX" class Network at U41\n- "AI-PATCH-02" make Panduit model "1RU-DP6 Panel RJ45 24-port CAT6" class Data Panel at U40\n- "AI-WM-02" make APC model "1RU-Wire Manager AR8602" class Passive at U39\n- "AI-PATCH-03" make Panduit model "1RU-CP Panel RJ45 24-port CAT6A" class Data Panel at U38\n- "AI-SRV-05" make Dell model "PowerEdge R730" class Device at U1\n- "AI-SRV-06" make Dell model "PowerEdge R720" class Device at U3\n- "AI-BLANK-02" make APC model "2RU-Blanking Plate-APC" class Passive at U5', expected: '10 items created in CAB-02. 11U used + 2 ZeroU PDUs.', tags: ['device','network','rack-pdu','data-panel','passive'] },
+      { num: '2.5', label: 'Bulk Create CAB-03 Items', prompt: 'Create the following items in cabinet AI-CAB-03, all status Planned:\n\n- "AI-PDU-C1" make APC model AP8853 class Rack PDU mounting ZeroU\n- "AI-SRV-07" make Dell model "PowerEdge R740xd" class Device at U1\n- "AI-SRV-08" make Dell model "PowerEdge R730xd" class Device at U3\n- "AI-TOR-03" make Cisco model "Nexus N9K-C9372TX" class Network at U42\n- "AI-PROBE-02" make APC model AP9340 class Probe at U41\n- "AI-PATCH-04" make Panduit model "1RU-CPP Panel RJ45 24-port CAT6" class Data Panel at U40\n- "AI-WM-03" make APC model "2RU-Wire Manager AR8600" class Passive at U38\n- "AI-BLANK-03" make APC model "4RU-Blanking Plate-APC" class Passive at U5', expected: '8 items created in CAB-03. 12U used + 1 ZeroU PDU.', tags: ['device','network','rack-pdu','probe','data-panel','passive'] },
+      { num: '2.6', label: 'Create Ticket', prompt: 'Create a new ticket with description "AI-ROOM-01 Commissioning: Install and cable 3 cabinets of compute, network, and infrastructure equipment"', expected: 'Ticket created.', tags: ['ticket'] },
+    ]
+  },
+  {
+    id: 'phase3', title: 'Verify Created Objects', badge: '3',
+    prompts: [
+      { num: '3.1', label: 'Cabinet 1 Contents', prompt: 'What items are installed in cabinet AI-CAB-01?', expected: '10 items: 2 PDUs, 1 probe, 1 patch panel, 1 wire mgr, 4 servers, 1 blank.', tags: ['verify'] },
+      { num: '3.2', label: 'Cabinet 2 Contents', prompt: 'What items are installed in cabinet AI-CAB-02?', expected: '10 items: 2 PDUs, 2 switches, 2 patch panels, 1 wire mgr, 2 servers, 1 blank.', tags: ['verify'] },
+      { num: '3.3', label: 'Cabinet 3 Contents', prompt: 'What items are installed in cabinet AI-CAB-03?', expected: '8 items: 1 PDU, 2 servers, 1 switch, 1 probe, 1 patch panel, 1 wire mgr, 1 blank.', tags: ['verify'] },
+      { num: '3.4', label: 'Cabinet 1 U-Map', prompt: 'Show me the U-position map for cabinet AI-CAB-01', expected: 'U positions occupied, ZeroU PDUs listed separately, ~26% util.', tags: ['query'] },
+      { num: '3.5', label: 'Cabinet 2 U-Map', prompt: 'Show me the U-position map for cabinet AI-CAB-02', expected: 'Switches, panels, servers visible, ~29% util.', tags: ['query'] },
+      { num: '3.6', label: 'Cabinet 3 U-Map', prompt: 'Show me the U-position map for cabinet AI-CAB-03', expected: 'Storage servers, switch, probe visible, ~31% util.', tags: ['query'] },
+      { num: '3.7', label: 'Cabinet 1 Capacity', prompt: 'What space is available in cabinet AI-CAB-01?', expected: '~11U used, ~31U available, ZeroU excluded.', tags: ['query'] },
+      { num: '3.8', label: 'Cabinet 2 Capacity', prompt: 'What space is available in cabinet AI-CAB-02?', expected: '~12U used, ~30U available.', tags: ['query'] },
+      { num: '3.9', label: 'Cabinet 3 Capacity', prompt: 'What space is available in cabinet AI-CAB-03?', expected: '~13U used, ~29U available.', tags: ['query'] },
+      { num: '3.10', label: 'All Items in Location', prompt: 'Search for all items in location AI-ROOM-01', expected: '28+ items plus cabinets, with pagination.', tags: ['query'] },
+      { num: '3.11', label: 'Search Devices', prompt: 'Search for all Device items in dcTrack', expected: 'AI-SRV-01 through AI-SRV-08 appear.', tags: ['query','device'] },
+      { num: '3.12', label: 'Search Network', prompt: 'Search for all Network items in dcTrack', expected: 'AI-TOR-01, 02, 03 appear.', tags: ['query','network'] },
+      { num: '3.13', label: 'Search Rack PDUs', prompt: 'Search for all Rack PDU items in dcTrack', expected: 'AI-PDU-A1, A2, B1, B2, C1 appear.', tags: ['query','rack-pdu'] },
+      { num: '3.14', label: 'Search Data Panels', prompt: 'Search for all Data Panel items in dcTrack', expected: 'AI-PATCH-01 through 04 appear.', tags: ['query','data-panel'] },
+      { num: '3.15', label: 'Search Probes', prompt: 'Search for all Probe items in dcTrack', expected: 'AI-PROBE-01, 02 appear.', tags: ['query','probe'] },
+    ]
+  },
+  {
+    id: 'phase4', title: 'Query & Search Operations', badge: '4',
+    prompts: [
+      { num: '4.1', label: 'Search by Exact Name', prompt: 'Search for item named "AI-SRV-01" in dcTrack', expected: 'Single server with full details.', tags: ['query'] },
+      { num: '4.2', label: 'Search by Prefix', prompt: 'Search for items named "AI-TOR" in dcTrack', expected: 'All 3 TOR switches.', tags: ['query'] },
+      { num: '4.3', label: 'Search Make \u2014 Dell', prompt: 'Search for manufacturer Dell', tags: ['query'] },
+      { num: '4.4', label: 'Search Make \u2014 Cisco', prompt: 'Search for manufacturer Cisco', tags: ['query'] },
+      { num: '4.5', label: 'Search Make \u2014 APC', prompt: 'Search for manufacturer APC', tags: ['query'] },
+      { num: '4.6', label: 'List All Manufacturers', prompt: 'List all manufacturers in dcTrack', expected: 'Full list with pagination.', tags: ['query'] },
+      { num: '4.7', label: 'Search Models \u2014 Nexus', prompt: 'Search for models with name \'Nexus\' in dcTrack', expected: 'Multiple Cisco Nexus models.', tags: ['query'] },
+      { num: '4.8', label: 'Search Models \u2014 PowerEdge', prompt: 'Search for models with name \'PowerEdge R7\' in dcTrack', expected: 'Dell R710, R720, R730, R740 etc.', tags: ['query'] },
+      { num: '4.9', label: 'List All Models (Pagination)', prompt: 'List all models in dcTrack', expected: 'Showing 1000 of 40,000+ total.', tags: ['query'] },
+      { num: '4.10', label: 'Find Cabinets \u2265 4U Free', prompt: 'Find cabinets in AI-ROOM-01 that have at least 4U of free space', expected: 'All 3 cabinets listed.', tags: ['query'] },
+      { num: '4.11', label: 'Find Cabinets \u2265 35U Free', prompt: 'Find cabinets in AI-ROOM-01 that have at least 35U of free space', expected: 'All 3 cabinets (each has 29-31U free).', tags: ['query'] },
+      { num: '4.12', label: 'Search Tickets', prompt: 'Search for all tickets in dcTrack', expected: 'Commissioning ticket appears.', tags: ['query','ticket'] },
+    ]
+  },
+  {
+    id: 'phase5', title: 'Modify Objects', badge: '5',
+    prompts: [
+      { num: '5.1', label: 'Set SRV-01 \u2192 Installed', prompt: 'Search for item named "AI-SRV-01" using dctrack_search_items, get its itemId, then update its status to Installed using dctrack_update_item', expected: 'Status changed to Installed.', tags: ['modify'] },
+      { num: '5.2', label: 'Verify Status Change', prompt: 'Search for item named "AI-SRV-01" in dcTrack', expected: 'Status now "Installed".', tags: ['verify'] },
+      { num: '5.3', label: 'Set SRV-05 \u2192 Installed', prompt: 'Search for item named "AI-SRV-05" using dctrack_search_items, get its itemId, then update its status to Installed using dctrack_update_item', tags: ['modify'] },
+      { num: '5.4', label: 'Check Cabinet 1 Space', prompt: 'Show me the U-position map for cabinet AI-CAB-01', expected: 'Find free 2U slot.', tags: ['query'] },
+      { num: '5.5', label: 'Move SRV-08 \u2192 CAB-01 U20', prompt: 'Search for item named "AI-SRV-08" using dctrack_search_items, get its itemId, then move it to cabinet AI-CAB-01 at U-position 20', expected: 'Server relocated.', tags: ['modify'] },
+      { num: '5.6', label: 'Verify CAB-03 Lost Server', prompt: 'What items are installed in cabinet AI-CAB-03?', expected: 'AI-SRV-08 gone.', tags: ['verify'] },
+      { num: '5.7', label: 'Verify CAB-01 Gained Server', prompt: 'What items are installed in cabinet AI-CAB-01?', expected: 'AI-SRV-08 now here.', tags: ['verify'] },
+      { num: '5.8', label: 'Updated U-Map', prompt: 'Show me the U-position map for cabinet AI-CAB-01', expected: 'AI-SRV-08 at U20.', tags: ['verify'] },
+      { num: '5.9', label: 'Find Ticket', prompt: 'Search for tickets in dcTrack', expected: 'Note ticket ID.', tags: ['query'] },
+      { num: '5.10', label: 'Update Ticket Progress', prompt: 'Search for tickets using dctrack_search_tickets, find the most recent one, get its ID, then update it with status "In Progress" and comments "Cabinets 1-3 populated. SRV-01 and SRV-05 commissioned. SRV-08 relocated."', tags: ['modify','ticket'] },
+    ]
+  },
+  {
+    id: 'phase6', title: 'Delete & Cleanup \u2014 Restore Empty State', badge: '6',
+    prompts: [
+      { num: '6.1', label: 'List All AI-ROOM-01 Items', prompt: 'What items are installed in cabinets AI-CAB-01, AI-CAB-02, and AI-CAB-03?', expected: 'Shows all items across 3 cabinets.', tags: ['query'] },
+      { num: '6.2', label: 'Bulk Delete CAB-01 Items', prompt: 'Delete the following items from dcTrack. For each one, search by name to get the itemId, then delete it:\n\n- AI-PDU-A1\n- AI-PDU-A2\n- AI-PROBE-01\n- AI-PATCH-01\n- AI-WM-01\n- AI-SRV-01\n- AI-SRV-02\n- AI-SRV-03\n- AI-SRV-04\n- AI-BLANK-01\n- AI-SRV-08', expected: 'All CAB-01 items deleted (including moved SRV-08).', tags: ['delete'] },
+      { num: '6.3', label: 'Verify CAB-01 Empty', prompt: 'What items are installed in cabinet AI-CAB-01?', expected: 'No items.', tags: ['verify'] },
+      { num: '6.4', label: 'Bulk Delete CAB-02 Items', prompt: 'Delete the following items from dcTrack. For each one, search by name to get the itemId, then delete it:\n\n- AI-PDU-B1\n- AI-PDU-B2\n- AI-TOR-01\n- AI-TOR-02\n- AI-PATCH-02\n- AI-WM-02\n- AI-PATCH-03\n- AI-SRV-05\n- AI-SRV-06\n- AI-BLANK-02', expected: 'All CAB-02 items deleted.', tags: ['delete'] },
+      { num: '6.5', label: 'Verify CAB-02 Empty', prompt: 'What items are installed in cabinet AI-CAB-02?', expected: 'No items.', tags: ['verify'] },
+      { num: '6.6', label: 'Bulk Delete CAB-03 Items', prompt: 'Delete the following items from dcTrack. For each one, search by name to get the itemId, then delete it:\n\n- AI-PDU-C1\n- AI-SRV-07\n- AI-TOR-03\n- AI-PROBE-02\n- AI-PATCH-04\n- AI-WM-03\n- AI-BLANK-03', expected: 'All CAB-03 items deleted.', tags: ['delete'] },
+      { num: '6.7', label: 'Verify CAB-03 Empty', prompt: 'What items are installed in cabinet AI-CAB-03?', expected: 'No items.', tags: ['verify'] },
+      { num: '6.8', label: 'Bulk Delete Cabinets', prompt: 'Delete the following cabinets from dcTrack. For each one, search by name to get the itemId, then delete it:\n\n- AI-CAB-01\n- AI-CAB-02\n- AI-CAB-03', expected: 'All 3 cabinets deleted.', tags: ['delete','cabinet'] },
+      { num: '6.9', label: 'Delete Ticket', prompt: 'Search for tickets using dctrack_search_tickets, find the most recent one, get its ID, then delete it using dctrack_delete_ticket', tags: ['delete','ticket'] },
+      { num: '6.10', label: 'Confirm Location Empty', prompt: 'Search for all items in location AI-ROOM-01', expected: 'No items found.', tags: ['verify'] },
+      { num: '6.11', label: 'Confirm No Cabinets', prompt: 'Find cabinets in AI-ROOM-01', expected: 'No cabinets. Fully restored.', tags: ['verify'] },
+    ]
+  },
+];
+
+// ─── Cross-tab communication via BroadcastChannel ───
+const bc = new BroadcastChannel('dctrack-demo');
+let chatConnected = false;
+
+bc.onmessage = (e) => {
+    if (e.data?.type === 'chat-ready' || e.data?.type === 'chat-ack') {
+        chatConnected = true;
+        document.getElementById('connDot').classList.add('connected');
+        document.getElementById('connDot').title = 'Chat tab connected';
+    }
+};
+
+// Ping chat on load
+setInterval(() => { bc.postMessage({ type: 'ping' }); }, 3000);
+
+// ─── Open Chat ───
+let chatWindow = null;
+document.getElementById('openChatBtn').addEventListener('click', () => {
+    const url = window.location.origin + '/';
+    chatWindow = window.open(url, 'dctrack-chat');
+    if (chatWindow) chatWindow.focus();
+});
+
+// ─── Render ───
+const content = document.getElementById('content');
+let totalPrompts = 0;
+let sentCount = 0;
+const sentSet = new Set(JSON.parse(localStorage.getItem('demo-sent') || '[]'));
+
+PHASES.forEach(phase => {
+    totalPrompts += phase.prompts.length;
+    const div = document.createElement('div');
+    div.className = 'phase';
+    div.id = phase.id;
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'phase-header';
+    header.innerHTML = `
+        <span class="phase-badge">${phase.badge}</span>
+        <span class="phase-title">${phase.title}</span>
+        <span class="phase-count">${phase.prompts.length} prompts</span>
+        <span class="phase-chevron">\u25BC</span>
+    `;
+    header.addEventListener('click', () => div.classList.toggle('collapsed'));
+    div.appendChild(header);
+
+    // Body
+    const body = document.createElement('div');
+    body.className = 'phase-body';
+
+    phase.prompts.forEach(p => {
+        const row = document.createElement('div');
+        row.className = 'prompt-row' + (sentSet.has(p.num) ? ' sent' : '');
+        row.dataset.num = p.num;
+
+        const tags = (p.tags || []).map(t => `<span class="class-tag ${t}">${t}</span>`).join('');
+        const editable = p.editable ? ' contenteditable="true" spellcheck="false"' : '';
+
+        row.innerHTML = `
+            <div class="prompt-num">${p.num}</div>
+            <div class="prompt-info">
+                <div class="prompt-label">${p.label} ${tags}</div>
+                <div class="prompt-text"${editable}>${escHtml(p.prompt)}</div>
+                ${p.expected ? `<div class="prompt-expected">\u2192 ${escHtml(p.expected)}</div>` : ''}
+            </div>
+            <div class="prompt-status"></div>
+            <button class="send-prompt-btn ${sentSet.has(p.num) ? 'sent' : ''}" title="Send to Chat">\u27A4</button>
+        `;
+
+        const btn = row.querySelector('.send-prompt-btn');
+        btn.addEventListener('click', () => sendToChat(p.num, row));
+        body.appendChild(row);
+    });
+
+    div.appendChild(body);
+    content.appendChild(div);
+});
+
+// Count initial sent
+sentSet.forEach(n => sentCount++);
+updateProgress();
+
+function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function sendToChat(num, row) {
+    const promptEl = row.querySelector('.prompt-text');
+    const text = promptEl.textContent.trim();
+
+    if (!chatConnected) {
+        showToast('\u26A0 Chat tab not connected. Click "Open Chat" first.');
+        return;
+    }
+
+    bc.postMessage({ type: 'set-prompt', text });
+    row.classList.add('sent');
+    row.querySelector('.send-prompt-btn').classList.add('sent');
+    sentSet.add(num);
+    sentCount = sentSet.size;
+    localStorage.setItem('demo-sent', JSON.stringify([...sentSet]));
+    updateProgress();
+    showToast('\u2713 Sent to chat: ' + text.substring(0, 60) + (text.length > 60 ? '...' : ''));
+}
+
+function updateProgress() {
+    const pct = totalPrompts > 0 ? (sentCount / totalPrompts * 100) : 0;
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressText').textContent = sentCount + ' / ' + totalPrompts + ' prompts sent';
+}
+
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('visible');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('visible'), 2500);
+}
+</script>
+</body>
+</html>

@@ -151,7 +151,7 @@ export class PowerIQClient extends BaseClient {
     limit?: number;
   }): Promise<PowerIQAlert[]> {
     // No /alerts endpoint — use /events which tracks all alerts/events
-    const queryParams: Record<string, any> = { limit: params?.limit ?? 100 };
+    const queryParams: Record<string, any> = { limit: params?.limit ?? 1000 };
     if (params?.severity) queryParams['severity_eq'] = params.severity;
     if (params?.type) queryParams['event_type_eq'] = params.type;
     const res = await this.get<any>('/events', queryParams, false);

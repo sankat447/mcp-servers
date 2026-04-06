@@ -31,7 +31,7 @@ const deleteModelSchema = z.object({ modelId: z.number() });
 const searchModelsSchema = z.object({
   filters: z.any().optional(),
   pageNumber: z.number().default(0),
-  pageSize: z.number().default(50),
+  pageSize: z.number().default(1000),
 });
 
 export async function handleDcTrackMakesTool(

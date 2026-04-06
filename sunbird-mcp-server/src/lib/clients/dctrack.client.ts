@@ -60,6 +60,7 @@ export class DcTrackClient extends BaseClient {
   }
 
   async listCabinets(params?: {
+    location?: string;
     locationId?: number;
     pageSize?: number;
     pageNumber?: number;
@@ -68,16 +69,12 @@ export class DcTrackClient extends BaseClient {
     const columns: any[] = [
       { name: 'tiClass', filter: { eq: 'Cabinet' } },
     ];
-    if (params?.locationId) {
-      // Resolve locationId to location path string for cmbLocation filter
-      let locationPath: string = String(params.locationId);
-      try {
-        const loc = await this.getLocation(params.locationId);
-        locationPath = (loc as any)?.tiLocationCode ?? (loc as any)?.tiLocationName ?? locationPath;
-      } catch {}
-      columns.push({ name: 'cmbLocation', filter: { contains: locationPath } });
+    if (params?.location) {
+      columns.push({ name: 'tiMultiField', filter: { eq: params.location } });
+    } else if (params?.locationId) {
+      columns.push({ name: 'cmbLocation', filter: { eq: String(params.locationId) } });
     }
-    const pageSize = params?.pageSize ?? 100;
+    const pageSize = params?.pageSize ?? 1000;
     const url = `/quicksearch/items?pageNumber=${params?.pageNumber ?? 0}&pageSize=${pageSize}`;
     const res = await this.post<any>(url, {
       columns,
@@ -224,7 +221,9 @@ export class DcTrackClient extends BaseClient {
 
   async searchItems(params: {
     query?: string;
+    name?: string;
     class?: string;
+    location?: string;
     locationId?: number;
     cabinetId?: number;
     status?: string;
@@ -233,12 +232,14 @@ export class DcTrackClient extends BaseClient {
   }): Promise<DcTrackItem[]> {
     // Build quicksearch v2 payload using the correct column/filter format
     const columns: any[] = [];
-    if (params.query) columns.push({ name: 'tiMultiField', filter: { eq: params.query } });
+    if (params.name) columns.push({ name: 'tiName', filter: { eq: params.name } });
+    else if (params.query) columns.push({ name: 'tiMultiField', filter: { eq: params.query } });
     if (params.class) columns.push({ name: 'tiClass', filter: { eq: params.class } });
     if (params.status) columns.push({ name: 'cmbStatus', filter: { eq: params.status } });
-    if (params.locationId) columns.push({ name: 'cmbLocation', filter: { eq: String(params.locationId) } });
+    if (params.location) columns.push({ name: 'tiMultiField', filter: { eq: params.location } });
+    else if (params.locationId) columns.push({ name: 'cmbLocation', filter: { eq: String(params.locationId) } });
 
-    const pageSize = params.pageSize ?? 50;
+    const pageSize = params.pageSize ?? 1000;
     const url = `/quicksearch/items?pageNumber=${params.pageNumber ?? 0}&pageSize=${pageSize}`;
     const res = await this.post<any>(url, {
       columns,
@@ -310,7 +311,7 @@ export class DcTrackClient extends BaseClient {
     if (params?.query) columns.push({ name: 'model', filter: { eq: params.query } });
     if (params?.class) columns.push({ name: 'class', filter: { eq: params.class } });
     if (params?.make) columns.push({ name: 'make', filter: { eq: params.make } });
-    const pageSize = params?.pageSize ?? 100;
+    const pageSize = params?.pageSize ?? 1000;
     const url = `/quicksearch/models?pageNumber=0&pageSize=${pageSize}`;
     const res = await this.post<any>(url, {
       columns,
@@ -382,7 +383,10 @@ export class DcTrackClient extends BaseClient {
     if (resolvedLocation) payload.cmbLocation = resolvedLocation;
     if (resolvedCabinetName) payload.cmbCabinet = resolvedCabinetName;
 
-    if (item.tiUPosition) payload.tiUPosition = item.tiUPosition;
+    if (item.tiUPosition != null) {
+      payload.cmbUPosition = item.tiUPosition;
+      payload.tiUPosition = item.tiUPosition;
+    }
     if (item.tiMounting) payload.tiMounting = item.tiMounting;
     if (item.tiSerialNumber) payload.tiSerialNumber = item.tiSerialNumber;
     if (item.tiAssetTag) payload.tiAssetTag = item.tiAssetTag;
@@ -837,7 +841,7 @@ export class DcTrackClient extends BaseClient {
     pageSize?: number;
   }): Promise<any> {
     const res = await this.post<any>(
-      `/quicksearch/models?pageNumber=${params.pageNumber ?? 0}&pageSize=${params.pageSize ?? 50}`,
+      `/quicksearch/models?pageNumber=${params.pageNumber ?? 0}&pageSize=${params.pageSize ?? 1000}`,
       {
         columns: params.columns ?? [],
         selectedColumns: params.selectedColumns ?? [{ name: 'model' }, { name: 'make' }, { name: 'class' }],
@@ -1109,7 +1113,7 @@ export class DcTrackClient extends BaseClient {
     pageNumber?: number;
     pageSize?: number;
   }): Promise<any> {
-    const url = `/quicksearch/tickets?pageNumber=${params.pageNumber ?? 0}&pageSize=${params.pageSize ?? 50}`;
+    const url = `/quicksearch/tickets?pageNumber=${params.pageNumber ?? 0}&pageSize=${params.pageSize ?? 1000}`;
     const res = await this.post<any>(url, {
       columns: params.columns ?? [],
       selectedColumns: params.selectedColumns ?? [{ name: 'ticketNumber' }, { name: 'ticketDesc' }, { name: 'ticketStatus' }],
@@ -1227,7 +1231,7 @@ export class DcTrackClient extends BaseClient {
     pageNumber?: number;
     pageSize?: number;
   }): Promise<any> {
-    const url = `/quicksearch/parts/models?pageNumber=${params.pageNumber ?? 0}&pageSize=${params.pageSize ?? 50}`;
+    const url = `/quicksearch/parts/models?pageNumber=${params.pageNumber ?? 0}&pageSize=${params.pageSize ?? 1000}`;
     return this.post<any>(url, {
       columns: params.columns ?? [],
       selectedColumns: params.selectedColumns ?? [{ name: 'modelName' }, { name: 'make' }],
@@ -1267,7 +1271,7 @@ export class DcTrackClient extends BaseClient {
     pageNumber?: number;
     pageSize?: number;
   }): Promise<any> {
-    const url = `/quicksearch/parts?pageNumber=${params.pageNumber ?? 0}&pageSize=${params.pageSize ?? 50}`;
+    const url = `/quicksearch/parts?pageNumber=${params.pageNumber ?? 0}&pageSize=${params.pageSize ?? 1000}`;
     return this.post<any>(url, {
       columns: params.columns ?? [],
       selectedColumns: params.selectedColumns ?? [{ name: 'partModelName' }, { name: 'locationName' }],
@@ -1330,7 +1334,7 @@ export class DcTrackClient extends BaseClient {
     pageNumber?: number;
     pageSize?: number;
   }): Promise<any> {
-    const url = `/quicksearch/auditTrail?pageNumber=${params.pageNumber ?? 0}&pageSize=${params.pageSize ?? 50}`;
+    const url = `/quicksearch/auditTrail?pageNumber=${params.pageNumber ?? 0}&pageSize=${params.pageSize ?? 1000}`;
     try {
       return await this.post<any>(url, {
         columns: params.columns ?? [],
