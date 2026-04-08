@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BRS Prompts | DCIM Lifecycle Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --sunbird-orange: #F7941D;
+            --sunbird-orange-light: #FFAD4A;
+            --sunbird-orange-dark: #E07D00;
+            --iisl-blue: #1E3A5F;
+            --iisl-blue-light: #2C5282;
+            --bg-primary: #0A0E14;
+            --bg-secondary: #111821;
+            --bg-tertiary: #1A2332;
+            --bg-card: #151D2B;
+            --bg-hover: #1F2A3C;
+            --text-primary: #F0F4F8;
+            --text-secondary: #A0AEC0;
+            --text-muted: #718096;
+            --success: #48BB78;
+            --error: #FC8181;
+            --blue: #63B3ED;
+            --purple: #B794F4;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-highlight: rgba(247, 148, 29, 0.3);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* -- Header -- */
+        .header {
+            background: linear-gradient(135deg, var(--iisl-blue) 0%, var(--bg-secondary) 100%);
+            border-bottom: 1px solid var(--border-highlight);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .header-left h1 {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--sunbird-orange), var(--sunbird-orange-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header-left .subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .open-chat-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--sunbird-orange), var(--sunbird-orange-dark));
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .open-chat-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(247, 148, 29, 0.4);
+        }
+        .connection-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--error);
+            transition: background 0.3s;
+        }
+        .connection-dot.connected { background: var(--success); }
+
+        /* -- Progress bar -- */
+        .progress-bar {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            position: sticky;
+            top: 62px;
+            z-index: 99;
+        }
+        .progress-track {
+            flex: 1;
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--sunbird-orange), var(--success));
+            border-radius: 3px;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+        .progress-text {
+            font-size: 12px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        /* -- Content -- */
+        .content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px 32px 80px;
+        }
+
+        /* -- Phase Section -- */
+        .phase {
+            margin-bottom: 32px;
+        }
+        .phase-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            background: linear-gradient(135deg, var(--iisl-blue), var(--bg-tertiary));
+            border-radius: 10px;
+            margin-bottom: 2px;
+            cursor: pointer;
+            user-select: none;
+            border: 1px solid var(--border);
+            transition: border-color 0.2s;
+        }
+        .phase-header:hover {
+            border-color: var(--border-highlight);
+        }
+        .phase-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 28px;
+            padding: 0 8px;
+            background: var(--sunbird-orange);
+            color: #fff;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .phase-title {
+            font-size: 16px;
+            font-weight: 700;
+            flex: 1;
+        }
+        .phase-count {
+            font-size: 12px;
+            color: var(--text-muted);
+            background: var(--bg-primary);
+            padding: 4px 10px;
+            border-radius: 12px;
+        }
+        .phase-chevron {
+            color: var(--text-muted);
+            transition: transform 0.2s;
+            font-size: 14px;
+        }
+        .phase.collapsed .phase-chevron { transform: rotate(-90deg); }
+        .phase.collapsed .phase-body { display: none; }
+
+        /* -- Prompt Rows -- */
+        .phase-body {
+            border-left: 2px solid var(--border);
+            margin-left: 34px;
+            padding-left: 0;
+        }
+        .prompt-row {
+            display: flex;
+            align-items: stretch;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+        .prompt-row:hover { background: var(--bg-hover); }
+        .prompt-row.sent { opacity: 0.55; }
+        .prompt-num {
+            width: 52px;
+            min-width: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-right: 1px solid var(--border);
+        }
+        .prompt-info {
+            flex: 1;
+            padding: 12px 16px;
+            min-width: 0;
+        }
+        .prompt-label {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .prompt-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .prompt-expected {
+            margin-top: 6px;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+        .prompt-status {
+            width: 40px;
+            min-width: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .send-prompt-btn {
+            width: 48px;
+            min-width: 48px;
+            background: transparent;
+            border: none;
+            border-left: 1px solid var(--border);
+            color: var(--sunbird-orange);
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .send-prompt-btn:hover {
+            background: rgba(247, 148, 29, 0.1);
+            color: var(--sunbird-orange-light);
+        }
+        .send-prompt-btn.sent {
+            color: var(--success);
+        }
+
+        /* Tags */
+        .class-tag {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .class-tag.query { background: #1A2744; color: #63B3ED; }
+        .class-tag.verify { background: #1A362A; color: #48BB78; }
+        .class-tag.modify { background: #362A1A; color: #F6AD55; }
+        .class-tag.delete { background: #3B1A1A; color: #FC8181; }
+        .class-tag.cabinet { background: #2D3748; color: #E2E8F0; }
+        .class-tag.device { background: #2D3748; color: #90CDF4; }
+        .class-tag.network { background: #2D3748; color: #76E4F7; }
+        .class-tag.rack-pdu { background: #2D3748; color: #F687B3; }
+        .class-tag.connection { background: #2D3748; color: #76E4F7; }
+        .class-tag.data-port { background: #2D3748; color: #68D391; }
+        .class-tag.power-port { background: #2D3748; color: #F687B3; }
+        .class-tag.power-chain { background: #2D3748; color: #FBD38D; }
+        .class-tag.project { background: #1A365D; color: #90CDF4; }
+        .class-tag.change-request { background: #362A1A; color: #FBD38D; }
+        .class-tag.work-order { background: #2D3748; color: #D6BCFA; }
+        .class-tag.ticket { background: #2D3748; color: #FEB2B2; }
+        .class-tag.summary { background: #1A365D; color: #90CDF4; }
+        .class-tag.capacity { background: #2D3748; color: #C6F6D5; }
+        .class-tag.audit { background: #2D3748; color: #FBD38D; }
+        .class-tag.readings { background: #2D3748; color: #FEB2B2; }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 13px;
+            border: 1px solid var(--border-highlight);
+            box-shadow: var(--shadow-md);
+            transition: transform 0.3s ease;
+            z-index: 200;
+            max-width: 90vw;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .toast.visible { transform: translateX(-50%) translateY(0); }
+
+        /* -- Coverage Matrix -- */
+        .coverage-matrix {
+            margin-top: 32px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+        .coverage-matrix h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--sunbird-orange);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .coverage-matrix h2 .badge {
+            background: var(--sunbird-orange);
+            color: #000;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 6px;
+        }
+        .coverage-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .coverage-table th {
+            background: var(--bg-tertiary);
+            color: var(--sunbird-orange-light);
+            font-weight: 600;
+            text-align: left;
+            padding: 10px 14px;
+            border-bottom: 2px solid var(--border-highlight);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .coverage-table td {
+            padding: 8px 14px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+            vertical-align: middle;
+        }
+        .coverage-table tr:last-child td { border-bottom: none; }
+        .coverage-table tr:hover td { background: var(--bg-hover); }
+        .coverage-table td:first-child {
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+        .coverage-table .check { color: var(--success); font-weight: 700; margin-right: 4px; }
+        .coverage-table .none { color: var(--text-muted); }
+        .coverage-table .steps { font-size: 11px; color: var(--text-muted); }
+        .class-type {
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 3px;
+            margin-left: 6px;
+        }
+        .class-type.rackable { background: #1A365D; color: #63B3ED; }
+        .class-type.governance { background: #362A1A; color: #FBD38D; }
+        .class-type.connectivity { background: #1A362A; color: #48BB78; }
+
+        @media (max-width: 768px) {
+            .header { padding: 12px 16px; }
+            .content { padding: 16px; }
+            .prompt-num { width: 44px; min-width: 44px; font-size: 10px; }
+            .phase-body { margin-left: 22px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <div>
+            <h1>BRS Prompts &mdash; DCIM Lifecycle Demo</h1>
+            <div class="subtitle">Discover &rarr; Configure &rarr; Expand &mdash; 3 Change Requests with Full Audit Trail</div>
+        </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px;">
+        <div class="connection-dot" id="connDot" title="Chat tab not connected"></div>
+        <button class="open-chat-btn" id="openChatBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Open Chat
+        </button>
+    </div>
+</div>
+
+<div class="progress-bar">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-text" id="progressText">0 / 0 prompts sent</div>
+</div>
+
+<div class="content" id="content"></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// --- Data ---
+const PHASES = [
+  // ════════════════════════════════════════════════════════════════════
+  // PHASE 1: Rack Discovery via Visual AI
+  // Story: Start by discovering what's already in the rack
+  // ════════════════════════════════════════════════════════════════════
+  {
+    id: 'phase1', title: 'Rack Discovery via Visual AI', badge: '1',
+    prompts: [
+      { num: '1.1', label: '\u{1F4F7} Upload Rack Photo', prompt: '\u27A1\uFE0F SWITCH TO RACK DISCOVERY AI \u27A1\uFE0F\n\nOpen https://rack-inventory-chat.apps.ocp419.crucible.iisl.com/\nUpload a photo of the rack cabinet.\nAI identifies all equipment and shows an editable inventory.\nClick "Create Cabinet in dcTrack" to push everything.\n\nThis creates AI-CAB-01 with all discovered items.', expected: 'AI-CAB-01 created with all discovered equipment.', tags: ['cabinet','device','network'] },
+      { num: '1.2', label: 'Verify Discovery', prompt: 'What items are in cabinet AI-CAB-01?', expected: '10 items: 7 Dell C6100, 1 HP KVM, 1 Nexus, 1 Meraki.', tags: ['verify'] },
+      { num: '1.3', label: 'U-Position Map', prompt: 'Show U-position map for AI-CAB-01', expected: 'All items at correct U positions. U19+ free.', tags: ['query','cabinet'] },
+      { num: '1.4', label: 'Rack Summary', prompt: 'Show rack summary for AI-CAB-01', expected: '10 items, all Planned, no connections.', tags: ['summary','query'] },
+    ]
+  },
+
+  // ════════════════════════════════════════════════════════════════════
+  // PHASE 2: Create Project & 3 Change Requests
+  // Story: Now that items exist, create governance (tracked in Change > Tickets)
+  // ════════════════════════════════════════════════════════════════════
+  {
+    id: 'phase2', title: 'Project & 3 Tickets (CR-1, CR-2, CR-3)', badge: '2',
+    prompts: [
+      { num: '2.1', label: 'Create Project', prompt: 'Create a dcTrack project named "RM01-AI-CAB-01 Lifecycle" with number "PRJ-RM01-001", description "Full DCIM lifecycle: Discover, Configure, Expand", location "AI-ROOM-01", status "In Progress"', expected: 'Project created.', tags: ['project'] },
+      { num: '2.2', label: 'Verify Project', prompt: 'Show details of project "RM01-AI-CAB-01 Lifecycle"', expected: 'Project visible.', tags: ['verify','project'] },
+      { num: '2.3', label: 'Ticket: CR-1 Discovery', prompt: 'Create a ticket: "CR-1: Rack Discovery complete. AI-CAB-01 populated with 10 items via Visual AI scan of existing rack."', expected: 'Ticket created (Change > Tickets in dcTrack).', tags: ['change-request'] },
+      { num: '2.4', label: 'Ticket: CR-2 Configure', prompt: 'Create a ticket: "Ticket: CR-2 Configure Existing Infrastructure. Install PDU, wire power connections from PDU to all devices, wire network from servers to Meraki and uplink to Nexus."', expected: 'Ticket created.', tags: ['change-request'] },
+      { num: '2.5', label: 'Ticket: CR-3 Expand', prompt: 'Create a ticket: "CR-3: Onboard 4 New Servers into AI-CAB-01 at U20-U26. Connect network to Nexus 9236C and power to existing PDU."', expected: 'Ticket created.', tags: ['change-request'] },
+      { num: '2.6', label: 'Verify Tickets', prompt: 'List all tickets in dcTrack', expected: '3 tickets visible in Change > Tickets.', tags: ['verify'] },
+    ]
+  },
+
+  // ════════════════════════════════════════════════════════════════════
+  // PHASE 3-5: CR-2 — Configure Existing Infrastructure
+  // ════════════════════════════════════════════════════════════════════
+  {
+    id: 'phase3', title: 'CR-2: Install PDU & Set Status', badge: '3',
+    prompts: [
+      { num: '3.1', label: 'Create PDU', prompt: 'Create a Rack PDU named "AI-CAB-01 178B-01 PDU 1" in cabinet AI-CAB-01, make CPI, model "Orsted EA-3019-C", mounting ZeroU, with radioDepthPosition "Back"', expected: 'PDU created side-mounted.', tags: ['rack-pdu'] },
+      { num: '3.2', label: 'Fix PDU Side-Mount', prompt: 'Update "AI-CAB-01 178B-01 PDU 1" setting cmbUPosition to 1 for side-mount display', expected: 'Red side bar visible.', tags: ['modify','rack-pdu'] },
+      { num: '3.3', label: 'Verify Cabinet', prompt: 'What items are in cabinet AI-CAB-01?', expected: '11 items including PDU.', tags: ['verify'] },
+      { num: '3.4', label: 'Show PDU Outlets', prompt: 'List all power ports on "AI-CAB-01 178B-01 PDU 1"', expected: '43 ports: Inlet + Outlets 1-42.', tags: ['query','power-port'] },
+      { num: '3.5', label: 'Install Cabinet', prompt: 'Set cabinet AI-CAB-01 to status Installed with row label "Row-A" and row position 1', expected: 'Cabinet Installed.', tags: ['modify','cabinet'] },
+      { num: '3.6', label: 'Install Servers', prompt: 'Set these items to Installed:\n- "AI-CAB-01 DELL POWEREDGE-C6100 U1"\n- "AI-CAB-01 DELL POWEREDGE-C6100 U3"\n- "AI-CAB-01 DELL POWEREDGE-C6100 U5"\n- "AI-CAB-01 DELL POWEREDGE-C6100 U7"\n- "AI-CAB-01 DELL POWEREDGE-C6100 U12"\n- "AI-CAB-01 DELL POWEREDGE-C6100 U15"\n- "AI-CAB-01 DELL POWEREDGE-C6100 U17"', expected: '7 servers Installed.', tags: ['modify','device'] },
+      { num: '3.7', label: 'Install KVM, Switches, PDU', prompt: 'Set these items to Installed:\n- "AI-CAB-01 HP AF630A-KVM U14"\n- "AI-CAB-01 CISCO NEXUS-9236C U10"\n- "AI-CAB-01 CISCO MERAKI-MS250-48 U9"\n- "AI-CAB-01 178B-01 PDU 1"', expected: 'All Installed.', tags: ['modify'] },
+    ]
+  },
+  {
+    id: 'phase4', title: 'CR-2: Power Connections (requires dcTrack UI)', badge: '4',
+    prompts: [
+      { num: '4.0', label: '⚠️ Power Chain Note', prompt: 'NOTE: dcTrack requires a complete upstream power chain (Utility \u2192 Floor PDU \u2192 Rack PDU Inlet) before Rack PDU outlets can connect to devices. This chain must be configured in dcTrack UI first. Once the PDU inlet is connected upstream, run the prompts below to wire outlets to devices.', expected: 'Skip to Phase 5 (Network) if upstream power is not configured.', tags: ['query'] },
+      { num: '4.1', label: 'Power: Server U1', prompt: 'Connect power from "AI-CAB-01 178B-01 PDU 1" Outlet 1 to "AI-CAB-01 DELL POWEREDGE-C6100 U1" port PS1', expected: 'Outlet 1 \u2192 U1 PS1.', tags: ['connection','power-port','modify'] },
+      { num: '4.2', label: 'Power: Server U3', prompt: 'Connect power from "AI-CAB-01 178B-01 PDU 1" Outlet 2 to "AI-CAB-01 DELL POWEREDGE-C6100 U3" port PS1', expected: 'Outlet 2 \u2192 U3 PS1.', tags: ['connection','power-port','modify'] },
+      { num: '4.3', label: 'Power: Server U5', prompt: 'Connect power from "AI-CAB-01 178B-01 PDU 1" Outlet 3 to "AI-CAB-01 DELL POWEREDGE-C6100 U5" port PS1', expected: 'Outlet 3 \u2192 U5 PS1.', tags: ['connection','power-port','modify'] },
+      { num: '4.4', label: 'Power: Server U7', prompt: 'Connect power from "AI-CAB-01 178B-01 PDU 1" Outlet 4 to "AI-CAB-01 DELL POWEREDGE-C6100 U7" port PS1', expected: 'Outlet 4 \u2192 U7 PS1.', tags: ['connection','power-port','modify'] },
+      { num: '4.5', label: 'Power: Server U12', prompt: 'Connect power from "AI-CAB-01 178B-01 PDU 1" Outlet 5 to "AI-CAB-01 DELL POWEREDGE-C6100 U12" port PS1', expected: 'Outlet 5 \u2192 U12 PS1.', tags: ['connection','power-port','modify'] },
+      { num: '4.6', label: 'Power: Server U15', prompt: 'Connect power from "AI-CAB-01 178B-01 PDU 1" Outlet 6 to "AI-CAB-01 DELL POWEREDGE-C6100 U15" port PS1', expected: 'Outlet 6 \u2192 U15 PS1.', tags: ['connection','power-port','modify'] },
+      { num: '4.7', label: 'Power: Server U17', prompt: 'Connect power from "AI-CAB-01 178B-01 PDU 1" Outlet 7 to "AI-CAB-01 DELL POWEREDGE-C6100 U17" port PS1', expected: 'Outlet 7 \u2192 U17 PS1.', tags: ['connection','power-port','modify'] },
+      { num: '4.8', label: 'Power: KVM U14', prompt: 'Connect power from "AI-CAB-01 178B-01 PDU 1" Outlet 8 to "AI-CAB-01 HP AF630A-KVM U14" power port', expected: 'Outlet 8 \u2192 KVM.', tags: ['connection','power-port','modify'] },
+      { num: '4.9', label: 'Power: Nexus U10', prompt: 'Connect power from "AI-CAB-01 178B-01 PDU 1" Outlet 9 to "AI-CAB-01 CISCO NEXUS-9236C U10" power port', expected: 'Outlet 9 \u2192 Nexus.', tags: ['connection','power-port','modify'] },
+      { num: '4.10', label: 'Power: Meraki U9', prompt: 'Connect power from "AI-CAB-01 178B-01 PDU 1" Outlet 10 to "AI-CAB-01 CISCO MERAKI-MS250-48 U9" power port', expected: 'Outlet 10 \u2192 Meraki.', tags: ['connection','power-port','modify'] },
+      { num: '4.11', label: 'Verify Power', prompt: 'Show all connections on "AI-CAB-01 178B-01 PDU 1"', expected: '10 power connections.', tags: ['connection','verify'] },
+      { num: '4.12', label: 'Power Chain', prompt: 'Trace power chain for "AI-CAB-01 DELL POWEREDGE-C6100 U1"', expected: 'PDU Outlet 1 \u2192 U1 PS1.', tags: ['power-chain','query'] },
+    ]
+  },
+  {
+    id: 'phase5', title: 'CR-2: Network Connections', badge: '5',
+    prompts: [
+      { num: '5.1', label: 'Create Server eth0 Ports', prompt: 'Create data port "eth0" on each of these items with connector RJ45, protocol "Ethernet/IP", dataRate "1 Gbps", media "Twisted Pair":\n\n- "AI-CAB-01 DELL POWEREDGE-C6100 U1"\n- "AI-CAB-01 DELL POWEREDGE-C6100 U3"\n- "AI-CAB-01 DELL POWEREDGE-C6100 U5"\n- "AI-CAB-01 DELL POWEREDGE-C6100 U7"\n- "AI-CAB-01 DELL POWEREDGE-C6100 U12"\n- "AI-CAB-01 DELL POWEREDGE-C6100 U15"\n- "AI-CAB-01 DELL POWEREDGE-C6100 U17"\n- "AI-CAB-01 HP AF630A-KVM U14"', expected: '8 eth0 ports created on 7 servers + KVM.', tags: ['data-port','modify'] },
+      { num: '5.3', label: 'Create Meraki Ports', prompt: 'Create 8 data ports on "AI-CAB-01 CISCO MERAKI-MS250-48 U9": Port-1 through Port-8, each with connector RJ45, protocol "Ethernet/IP", dataRate "1 Gbps", media "Twisted Pair"', expected: '8 ports created.', tags: ['data-port','modify'] },
+      { num: '5.3', label: 'Create Uplink Ports', prompt: 'Create data port "Uplink-1" on "AI-CAB-01 CISCO MERAKI-MS250-48 U9" with connector QSFP28, protocol "Ethernet/IP", dataRate "100 Gbps", media "Twisted Pair". Then create "Uplink-1" on "AI-CAB-01 CISCO NEXUS-9236C U10" with same settings', expected: 'Uplink ports created.', tags: ['data-port','modify'] },
+      { num: '5.4', label: 'Network: Server U1', prompt: 'Connect "AI-CAB-01 DELL POWEREDGE-C6100 U1" port eth0 to "AI-CAB-01 CISCO MERAKI-MS250-48 U9" port Port-1', expected: 'U1 \u2192 Meraki Port-1.', tags: ['connection','network','modify'] },
+      { num: '5.5', label: 'Network: Server U3', prompt: 'Connect "AI-CAB-01 DELL POWEREDGE-C6100 U3" port eth0 to "AI-CAB-01 CISCO MERAKI-MS250-48 U9" port Port-2', expected: 'U3 \u2192 Meraki Port-2.', tags: ['connection','network','modify'] },
+      { num: '5.6', label: 'Network: Server U5', prompt: 'Connect "AI-CAB-01 DELL POWEREDGE-C6100 U5" port eth0 to "AI-CAB-01 CISCO MERAKI-MS250-48 U9" port Port-3', expected: 'U5 \u2192 Meraki Port-3.', tags: ['connection','network','modify'] },
+      { num: '5.7', label: 'Network: Server U7', prompt: 'Connect "AI-CAB-01 DELL POWEREDGE-C6100 U7" port eth0 to "AI-CAB-01 CISCO MERAKI-MS250-48 U9" port Port-4', expected: 'U7 \u2192 Meraki Port-4.', tags: ['connection','network','modify'] },
+      { num: '5.8', label: 'Network: Server U12', prompt: 'Connect "AI-CAB-01 DELL POWEREDGE-C6100 U12" port eth0 to "AI-CAB-01 CISCO MERAKI-MS250-48 U9" port Port-5', expected: 'U12 \u2192 Meraki Port-5.', tags: ['connection','network','modify'] },
+      { num: '5.9', label: 'Network: Server U15', prompt: 'Connect "AI-CAB-01 DELL POWEREDGE-C6100 U15" port eth0 to "AI-CAB-01 CISCO MERAKI-MS250-48 U9" port Port-6', expected: 'U15 \u2192 Meraki Port-6.', tags: ['connection','network','modify'] },
+      { num: '5.10', label: 'Network: Server U17', prompt: 'Connect "AI-CAB-01 DELL POWEREDGE-C6100 U17" port eth0 to "AI-CAB-01 CISCO MERAKI-MS250-48 U9" port Port-7', expected: 'U17 \u2192 Meraki Port-7.', tags: ['connection','network','modify'] },
+      { num: '5.11', label: 'Network: KVM U14', prompt: 'Connect "AI-CAB-01 HP AF630A-KVM U14" port eth0 to "AI-CAB-01 CISCO MERAKI-MS250-48 U9" port Port-8', expected: 'KVM \u2192 Meraki Port-8.', tags: ['connection','network','modify'] },
+      { num: '5.12', label: 'Uplink: Meraki \u2192 Nexus', prompt: 'Connect "AI-CAB-01 CISCO MERAKI-MS250-48 U9" port Uplink-1 to "AI-CAB-01 CISCO NEXUS-9236C U10" port Uplink-1', expected: 'Meraki \u2192 Nexus uplink.', tags: ['connection','network','modify'] },
+      { num: '5.13', label: 'Verify Network', prompt: 'Show all connections on "AI-CAB-01 CISCO MERAKI-MS250-48 U9"', expected: '9 connections: 7 servers + KVM + uplink.', tags: ['connection','verify'] },
+      { num: '5.14', label: 'Rack Summary', prompt: 'Show rack summary for AI-CAB-01', expected: '11 items, 10 power + 9 network = 19 connections.', tags: ['summary','query'] },
+      { num: '5.15', label: 'Close CR-2', prompt: 'Find ticket "CR-2" and update it with comments "Complete: 10 power + 9 network connections. All Installed."', expected: 'CR-2 updated.', tags: ['modify','change-request'] },
+    ]
+  },
+
+  // ════════════════════════════════════════════════════════════════════
+  // PHASE 6-7: CR-3 — Onboard 4 New Servers
+  // ════════════════════════════════════════════════════════════════════
+  {
+    id: 'phase6', title: 'CR-3: Work Orders', badge: '6',
+    prompts: [
+      { num: '6.1', label: 'WO-Racking', prompt: 'Create a ticket: "WO-RACK-001: Mount 4 Dell VxRail S670 servers in AI-CAB-01 at U20, U22, U24, U26."', expected: 'Racking WO created.', tags: ['ticket','work-order'] },
+      { num: '6.2', label: 'WO-Network', prompt: 'Create a ticket: "WO-NET-001: Create QSFP28 ports on Nexus 9236C and connect 4 new servers."', expected: 'Network WO created.', tags: ['ticket','work-order'] },
+      { num: '6.3', label: 'WO-Power', prompt: 'Create a ticket: "WO-SRV-001: Connect 4 new servers to PDU outlets 11-14."', expected: 'Power WO created.', tags: ['ticket','work-order'] },
+      { num: '6.4', label: 'WO-Closeout', prompt: 'Create a ticket: "WO-CLN-001: Validate all new connections and signoff."', expected: 'Closeout WO created.', tags: ['ticket','work-order'] },
+      { num: '6.5', label: 'Verify WOs', prompt: 'List all tickets in dcTrack', expected: '3 CRs + 4 WOs visible.', tags: ['verify','ticket'] },
+    ]
+  },
+  {
+    id: 'phase7', title: 'CR-3: Add Servers, Network & Power', badge: '7',
+    prompts: [
+      // -- Create & install servers --
+      { num: '7.1', label: 'Create 4 Servers', prompt: 'Create the following Dell VxRail S670 servers in cabinet AI-CAB-01:\n\n- "AI-CAB-01 VxRail S670 SRV-01" at U20\n- "AI-CAB-01 VxRail S670 SRV-02" at U22\n- "AI-CAB-01 VxRail S670 SRV-03" at U24\n- "AI-CAB-01 VxRail S670 SRV-04" at U26', expected: '4 servers created.', tags: ['device'] },
+      { num: '7.2', label: 'Install Servers', prompt: 'Set these items to Installed: "AI-CAB-01 VxRail S670 SRV-01", "AI-CAB-01 VxRail S670 SRV-02", "AI-CAB-01 VxRail S670 SRV-03", "AI-CAB-01 VxRail S670 SRV-04"', expected: '4 servers Installed.', tags: ['modify','device'] },
+      { num: '7.3', label: 'Verify Contents', prompt: 'What items are in cabinet AI-CAB-01?', expected: '15 items: 11 existing + 4 VxRail S670 servers.', tags: ['verify'] },
+      { num: '7.4', label: 'Close WO-Racking', prompt: 'Find ticket WO-RACK-001 and update it with comments "4 VxRail S670 servers mounted at U20, U22, U24, U26"', expected: 'WO updated.', tags: ['modify','ticket'] },
+
+      // -- Network to Nexus --
+      { num: '7.5', label: 'Create Server eth0 Ports', prompt: 'Create data port "qsfp0" on each new server with connector QSFP28, protocol "Ethernet/IP", dataRate "100 Gbps", media "Twisted Pair": "AI-CAB-01 VxRail S670 SRV-01", "AI-CAB-01 VxRail S670 SRV-02", "AI-CAB-01 VxRail S670 SRV-03", "AI-CAB-01 VxRail S670 SRV-04"', expected: '4 eth0 ports created.', tags: ['data-port','modify'] },
+      { num: '7.7', label: 'Create Nexus Ports', prompt: 'Create 4 data ports on "AI-CAB-01 CISCO NEXUS-9236C U10": Port-13, Port-14, Port-15, Port-16, each with connector QSFP28, protocol "Ethernet/IP", dataRate "100 Gbps", media "Twisted Pair"', expected: '4 ports created.', tags: ['data-port','modify'] },
+      { num: '7.7', label: 'Network: SRV-01', prompt: 'Connect "AI-CAB-01 VxRail S670 SRV-01" port qsfp0 to "AI-CAB-01 CISCO NEXUS-9236C U10" port Port-13', expected: 'SRV-01 \u2192 Nexus Port-13.', tags: ['connection','network','modify'] },
+      { num: '7.8', label: 'Network: SRV-02', prompt: 'Connect "AI-CAB-01 VxRail S670 SRV-02" port qsfp0 to "AI-CAB-01 CISCO NEXUS-9236C U10" port Port-14', expected: 'SRV-02 \u2192 Nexus Port-14.', tags: ['connection','network','modify'] },
+      { num: '7.9', label: 'Network: SRV-03', prompt: 'Connect "AI-CAB-01 VxRail S670 SRV-03" port qsfp0 to "AI-CAB-01 CISCO NEXUS-9236C U10" port Port-15', expected: 'SRV-03 \u2192 Nexus Port-15.', tags: ['connection','network','modify'] },
+      { num: '7.10', label: 'Network: SRV-04', prompt: 'Connect "AI-CAB-01 VxRail S670 SRV-04" port qsfp0 to "AI-CAB-01 CISCO NEXUS-9236C U10" port Port-16', expected: 'SRV-04 \u2192 Nexus Port-16.', tags: ['connection','network','modify'] },
+      { num: '7.11', label: 'Close WO-Network', prompt: 'Find ticket WO-NET-001 and update it with comments "4 VxRail S670 servers connected to Nexus ports 13-16"', expected: 'WO updated.', tags: ['modify','ticket'] },
+
+      // -- Power to PDU --
+      { num: '7.10a', label: '⚠️ Power Note', prompt: 'NOTE: Power connections require upstream chain configured in dcTrack UI. Skip if not set up.', expected: 'Skip power prompts if upstream not configured.', tags: ['query'] },
+      { num: '7.12', label: 'Power: SRV-01', prompt: 'Connect power from "AI-CAB-01 178B-01 PDU 1" Outlet 11 to "AI-CAB-01 VxRail S670 SRV-01" port PS1', expected: 'Outlet 11 \u2192 SRV-01 PS1.', tags: ['connection','power-port','modify'] },
+      { num: '7.13', label: 'Power: SRV-02', prompt: 'Connect power from "AI-CAB-01 178B-01 PDU 1" Outlet 12 to "AI-CAB-01 VxRail S670 SRV-02" port PS1', expected: 'Outlet 12 \u2192 SRV-02 PS1.', tags: ['connection','power-port','modify'] },
+      { num: '7.14', label: 'Power: SRV-03', prompt: 'Connect power from "AI-CAB-01 178B-01 PDU 1" Outlet 13 to "AI-CAB-01 VxRail S670 SRV-03" port PS1', expected: 'Outlet 13 \u2192 SRV-03 PS1.', tags: ['connection','power-port','modify'] },
+      { num: '7.15', label: 'Power: SRV-04', prompt: 'Connect power from "AI-CAB-01 178B-01 PDU 1" Outlet 14 to "AI-CAB-01 VxRail S670 SRV-04" port PS1', expected: 'Outlet 14 \u2192 SRV-04 PS1.', tags: ['connection','power-port','modify'] },
+      { num: '7.16', label: 'Close WO-Power', prompt: 'Find ticket WO-SRV-001 and update it with comments "4 VxRail S670 servers connected to PDU outlets 11-14"', expected: 'WO updated.', tags: ['modify','ticket'] },
+    ]
+  },
+
+  // ════════════════════════════════════════════════════════════════════
+  // PHASE 8: Validation & Closeout
+  // ════════════════════════════════════════════════════════════════════
+  {
+    id: 'phase8', title: 'Validation & Closeout', badge: '8',
+    prompts: [
+      { num: '8.1', label: 'Rack Summary', prompt: 'Show rack summary for AI-CAB-01', expected: '15 items, 14 power + 13 network = 27 connections.', tags: ['summary','query'] },
+      { num: '8.2', label: 'U-Position Map', prompt: 'Show U-position map for AI-CAB-01', expected: 'All 15 items at correct positions.', tags: ['verify','cabinet'] },
+      { num: '8.3', label: 'All Connections', prompt: 'Show all connections on "AI-CAB-01 CISCO MERAKI-MS250-48 U9" and "AI-CAB-01 CISCO NEXUS-9236C U10"', expected: '14 power + 13 network = 27 total.', tags: ['connection','verify'] },
+      { num: '8.4', label: 'Room Capacity', prompt: 'Find available capacity in AI-ROOM-01', expected: 'AI-CAB-01 utilization updated.', tags: ['capacity','query'] },
+      { num: '8.5', label: 'Audit Trail', prompt: 'Show recent audit trail in dcTrack', expected: 'Full history.', tags: ['audit','query'] },
+      { num: '8.6', label: 'Close WO-Closeout', prompt: 'Find ticket WO-CLN-001 and update it with comments "All validated: 15 items, 27 connections. Signoff received."', expected: 'WO updated.', tags: ['modify','ticket'] },
+      { num: '8.7', label: 'Close CR-3', prompt: 'Find ticket "CR-3" and update it with comments "4 VxRail S670 servers onboarded. Network to Nexus, power to PDU. All WOs complete."', expected: 'CR-3 updated.', tags: ['modify','change-request'] },
+      { num: '8.8', label: 'Complete Project', prompt: 'Set project "RM01-AI-CAB-01 Lifecycle" to status Complete', expected: 'Project complete.', tags: ['modify','project'] },
+    ]
+  },
+
+  // ════════════════════════════════════════════════════════════════════
+  // PHASE 9: Cleanup (Optional)
+  // ════════════════════════════════════════════════════════════════════
+  {
+    id: 'phase9', title: 'Cleanup \u2014 Restore Original State (Optional)', badge: '9',
+    prompts: [
+      { num: '9.1', label: 'Delete New Server Connections', prompt: 'Delete all connections on "AI-CAB-01 VxRail S670 SRV-01", "AI-CAB-01 VxRail S670 SRV-02", "AI-CAB-01 VxRail S670 SRV-03", "AI-CAB-01 VxRail S670 SRV-04"', expected: '8 connections deleted.', tags: ['connection','delete'] },
+      { num: '9.2', label: 'Delete Existing Connections', prompt: 'Delete all connections on "AI-CAB-01 178B-01 PDU 1" and "AI-CAB-01 CISCO MERAKI-MS250-48 U9"', expected: 'Remaining connections deleted.', tags: ['connection','delete'] },
+      { num: '9.3', label: 'Delete Ports', prompt: 'Delete all custom data ports from Nexus and Meraki switches', expected: 'All ports deleted.', tags: ['data-port','delete'] },
+      { num: '9.4', label: 'Delete New Servers', prompt: 'Delete items: "AI-CAB-01 VxRail S670 SRV-01", "AI-CAB-01 VxRail S670 SRV-02", "AI-CAB-01 VxRail S670 SRV-03", "AI-CAB-01 VxRail S670 SRV-04"', expected: '4 servers deleted.', tags: ['device','delete'] },
+      { num: '9.5', label: 'Delete PDU', prompt: 'Delete item "AI-CAB-01 178B-01 PDU 1"', expected: 'PDU deleted.', tags: ['rack-pdu','delete'] },
+      { num: '9.6', label: 'Delete Tickets', prompt: 'Find and delete all tickets in dcTrack', expected: 'All tickets deleted.', tags: ['ticket','delete'] },
+      { num: '9.7', label: 'Delete Project', prompt: 'Delete project "RM01-AI-CAB-01 Lifecycle"', expected: 'Project deleted.', tags: ['project','delete'] },
+      { num: '9.8', label: 'Verify Clean', prompt: 'What items are in cabinet AI-CAB-01?', expected: 'Original 10 items (no PDU, no VxRail servers).', tags: ['verify'] },
+    ]
+  },
+];
+
+// --- Cross-tab communication via BroadcastChannel ---
+const bc = new BroadcastChannel('dctrack-demo');
+let chatConnected = false;
+
+bc.onmessage = (e) => {
+    if (e.data?.type === 'chat-ready' || e.data?.type === 'chat-ack') {
+        chatConnected = true;
+        document.getElementById('connDot').classList.add('connected');
+        document.getElementById('connDot').title = 'Chat tab connected';
+    }
+};
+
+// Ping chat on load
+setInterval(() => { bc.postMessage({ type: 'ping' }); }, 3000);
+
+// --- Open Chat ---
+let chatWindow = null;
+document.getElementById('openChatBtn').addEventListener('click', () => {
+    const url = window.location.origin + '/';
+    chatWindow = window.open(url, 'dctrack-chat');
+    if (chatWindow) chatWindow.focus();
+});
+
+// --- Render ---
+const content = document.getElementById('content');
+let totalPrompts = 0;
+let sentCount = 0;
+const sentSet = new Set(JSON.parse(localStorage.getItem('brs-sent') || '[]'));
+
+PHASES.forEach(phase => {
+    totalPrompts += phase.prompts.length;
+    const div = document.createElement('div');
+    div.className = 'phase';
+    div.id = phase.id;
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'phase-header';
+    header.innerHTML = `
+        <span class="phase-badge">${phase.badge}</span>
+        <span class="phase-title">${phase.title}</span>
+        <span class="phase-count">${phase.prompts.length} prompts</span>
+        <span class="phase-chevron">\u25BC</span>
+    `;
+    header.addEventListener('click', () => div.classList.toggle('collapsed'));
+    div.appendChild(header);
+
+    // Body
+    const body = document.createElement('div');
+    body.className = 'phase-body';
+
+    phase.prompts.forEach(p => {
+        const row = document.createElement('div');
+        row.className = 'prompt-row' + (sentSet.has(p.num) ? ' sent' : '');
+        row.dataset.num = p.num;
+
+        const tags = (p.tags || []).map(t => `<span class="class-tag ${t}">${t}</span>`).join('');
+
+        row.innerHTML = `
+            <div class="prompt-num">${p.num}</div>
+            <div class="prompt-info">
+                <div class="prompt-label">${p.label} ${tags}</div>
+                <div class="prompt-text">${escHtml(p.prompt)}</div>
+                ${p.expected ? `<div class="prompt-expected">\u2192 ${escHtml(p.expected)}</div>` : ''}
+            </div>
+            <div class="prompt-status"></div>
+            <button class="send-prompt-btn ${sentSet.has(p.num) ? 'sent' : ''}" title="Send to Chat">\u27A4</button>
+        `;
+
+        const btn = row.querySelector('.send-prompt-btn');
+        btn.addEventListener('click', () => sendToChat(p.num, row));
+        body.appendChild(row);
+    });
+
+    div.appendChild(body);
+    content.appendChild(div);
+});
+
+// --- Coverage Matrix ---
+const coverageData = [
+    { cls: 'Project',            type: 'governance',   create: '2.1',       verify: '2.2',          modify: '8.8',       del: '9.7' },
+    { cls: 'Tickets (CRs+WOs)', type: 'governance',   create: '2.3\u20132.5, 6.1\u20136.4', verify: '2.6, 6.5', modify: '5.14, 7.4, 7.10, 7.15, 8.6\u20138.7', del: '9.6' },
+    { cls: 'Cabinet',            type: 'rackable',     create: '1.1',       verify: '1.2\u20131.4', modify: '3.5',      del: null },
+    { cls: 'Rack PDU',           type: 'rackable',     create: '3.1',       verify: '3.3\u20133.4', modify: '3.2',      del: '9.5' },
+    { cls: 'Device (Server)',    type: 'rackable',     create: '1.1, 7.1',  verify: '1.2, 7.3',     modify: '3.6, 7.2', del: '9.4' },
+    { cls: 'Data Ports',         type: 'connectivity', create: '5.1\u20135.2, 7.5', verify: '5.12', modify: null,      del: '9.3' },
+    { cls: 'Power Connections',  type: 'connectivity', create: '4.1\u20134.10, 7.11\u20137.14', verify: '4.11', modify: null, del: '9.1\u20139.2' },
+    { cls: 'Network Connections', type: 'connectivity', create: '5.3\u20135.11, 7.6\u20137.9', verify: '5.12', modify: null, del: '9.1\u20139.2' },
+    { cls: 'Rack Summary',       type: 'rackable',     create: null,        verify: '1.4, 5.13, 8.1', modify: null,     del: null },
+    { cls: 'Audit Trail',        type: 'governance',   create: null,        verify: '8.5',           modify: null,       del: null },
+];
+
+function coverageCell(steps) {
+    if (!steps) return '<span class="none">\u2014</span>';
+    return `<span class="check">\u2713</span><span class="steps">${steps}</span>`;
+}
+
+const matrixDiv = document.createElement('div');
+matrixDiv.className = 'coverage-matrix';
+matrixDiv.innerHTML = `
+    <h2>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        BRS Coverage Matrix
+        <span class="badge">9 Phases &bull; ${totalPrompts} Prompts</span>
+    </h2>
+    <table class="coverage-table">
+        <thead>
+            <tr>
+                <th>Object Type</th>
+                <th>Create</th>
+                <th>Verify / Read</th>
+                <th>Modify / Update</th>
+                <th>Delete</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${coverageData.map(r => `
+                <tr>
+                    <td>${r.cls} <span class="class-type ${r.type}">${r.type === 'rackable' ? 'Rackable' : r.type === 'governance' ? 'Governance' : 'Connectivity'}</span></td>
+                    <td>${coverageCell(r.create)}</td>
+                    <td>${coverageCell(r.verify)}</td>
+                    <td>${coverageCell(r.modify)}</td>
+                    <td>${coverageCell(r.del)}</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>
+`;
+content.appendChild(matrixDiv);
+
+// --- Phase Summary Table ---
+const summaryData = [
+    { phase: '1', title: 'Rack Discovery via Visual AI', prompts: 4, requirement: '\u{1F4F7} Scan rack photo \u2192 auto-populate dcTrack with 10 items' },
+    { phase: '2', title: 'Project & 3 Tickets (CR-1, CR-2, CR-3)', prompts: 6, requirement: 'Create project + CR-1 (done), CR-2 (configure), CR-3 (expand) \u2014 descriptions visible' },
+    { phase: '3', title: 'CR-2: Install PDU', prompts: 7, requirement: 'Create CPI PDU, install all items' },
+    { phase: '4', title: 'CR-2: Power Connections', prompts: 12, requirement: '10 power: PDU outlets \u2192 all devices' },
+    { phase: '5', title: 'CR-2: Network Connections', prompts: 14, requirement: '9 network: servers+KVM \u2192 Meraki \u2192 Nexus' },
+    { phase: '6', title: 'CR-3: Work Orders', prompts: 5, requirement: '4 WOs: Racking, Network, Power, Closeout' },
+    { phase: '7', title: 'CR-3: Servers + Connections', prompts: 15, requirement: '4 Dell VxRail S670 at U20-U26, network + power' },
+    { phase: '8', title: 'Validation & Closeout', prompts: 8, requirement: 'Verify all, close WOs/CRs, complete project' },
+    { phase: '9', title: 'Cleanup (Optional)', prompts: 8, requirement: 'Delete new items, restore to post-discovery state' },
+];
+
+const summaryDiv = document.createElement('div');
+summaryDiv.className = 'coverage-matrix';
+summaryDiv.style.marginTop = '24px';
+summaryDiv.innerHTML = `
+    <h2>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        BRS Execution Summary
+        <span class="badge">9 Phases &bull; ${totalPrompts} Prompts</span>
+    </h2>
+    <table class="coverage-table">
+        <thead>
+            <tr>
+                <th>Phase</th>
+                <th>Title</th>
+                <th style="text-align:center">Prompts</th>
+                <th>BRS Requirement Covered</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${summaryData.map(r => `
+                <tr>
+                    <td><span class="phase-badge" style="font-size:11px;min-width:24px;height:24px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;">${r.phase}</span></td>
+                    <td style="font-weight:600;color:var(--text-primary)">${r.title}</td>
+                    <td style="text-align:center;color:var(--sunbird-orange);font-weight:700">${r.prompts}</td>
+                    <td>${r.requirement}</td>
+                </tr>
+            `).join('')}
+            <tr style="border-top:2px solid var(--border-highlight)">
+                <td></td>
+                <td style="font-weight:700;color:var(--sunbird-orange)">Total</td>
+                <td style="text-align:center;color:var(--sunbird-orange);font-weight:700;font-size:15px">${totalPrompts}</td>
+                <td style="color:var(--text-muted);font-style:italic">Full BRS lifecycle: plan \u2192 approve \u2192 execute \u2192 verify \u2192 close</td>
+            </tr>
+        </tbody>
+    </table>
+`;
+content.appendChild(summaryDiv);
+
+// Count initial sent
+sentSet.forEach(n => sentCount++);
+updateProgress();
+
+function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function sendToChat(num, row) {
+    const promptEl = row.querySelector('.prompt-text');
+    const text = promptEl.textContent.trim();
+
+    if (!chatConnected) {
+        showToast('\u26A0 Chat tab not connected. Click "Open Chat" first.');
+        return;
+    }
+
+    bc.postMessage({ type: 'set-prompt', text });
+    row.classList.add('sent');
+    row.querySelector('.send-prompt-btn').classList.add('sent');
+    sentSet.add(num);
+    sentCount = sentSet.size;
+    localStorage.setItem('brs-sent', JSON.stringify([...sentSet]));
+    updateProgress();
+    showToast('\u2713 Sent to chat: ' + text.substring(0, 60) + (text.length > 60 ? '...' : ''));
+}
+
+function updateProgress() {
+    const pct = totalPrompts > 0 ? (sentCount / totalPrompts * 100) : 0;
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressText').textContent = sentCount + ' / ' + totalPrompts + ' prompts sent';
+}
+
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('visible');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('visible'), 2500);
+}
+</script>
+</body>
+</html>

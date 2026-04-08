@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>IIS Tech &#8211; Rack Discovery AI</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:        #09111e;
+  --surface:   #0e1d2f;
+  --surface2:  #152438;
+  --border:    #1e3352;
+  --border2:   #2a4a70;
+  --accent:    #00aaff;
+  --accent2:   #0066cc;
+  --accentglo: rgba(0,170,255,.18);
+  --green:     #00e5a0;
+  --amber:     #ffb300;
+  --red:       #ff4d6a;
+  --text:      #cde4f8;
+  --text2:     #7a9fbe;
+  --text3:     #3d6284;
+  --mono:      'IBM Plex Mono', monospace;
+  --head:      'Syne', sans-serif;
+  --body:      'DM Sans', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: var(--body);
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background-image: repeating-linear-gradient(0deg,rgba(0,0,0,.15) 0px,rgba(0,0,0,.15) 1px,transparent 1px,transparent 3px);
+  pointer-events:none; z-index:999; opacity:.35;
+}
+
+/* ── Header ── */
+header {
+  display:flex; align-items:center; gap:16px;
+  padding:12px 24px; flex-shrink:0;
+  background: linear-gradient(90deg,#050d18,#0a1828 60%,#070f1a);
+  border-bottom: 1px solid var(--border);
+  position:relative; z-index:10;
+}
+header::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:1px;
+  background: linear-gradient(90deg,transparent,var(--accent),transparent); opacity:.35;
+}
+.logo-wrap { display:flex; align-items:center; gap:10px; text-decoration:none; }
+.logo-icon {
+  width:36px; height:36px; border-radius:9px;
+  background: linear-gradient(135deg,var(--accent2),var(--accent));
+  display:grid; place-items:center; font-size:17px;
+  box-shadow: 0 0 14px var(--accentglo);
+}
+.logo-text { font-family:var(--head); font-weight:800; font-size:.95rem; color:#fff; line-height:1.1; }
+.logo-sub  { font-family:var(--mono); font-size:.58rem; color:var(--text2); letter-spacing:.08em; }
+.hdivider  { width:1px; height:26px; background:var(--border2); margin:0 4px; }
+.app-name  { font-family:var(--head); font-weight:700; font-size:.9rem; color:var(--text); }
+.app-tag   { font-family:var(--mono); font-size:.56rem; color:var(--accent); letter-spacing:.1em; text-transform:uppercase; display:block; margin-top:2px; }
+.hstatus   { margin-left:auto; display:flex; align-items:center; gap:7px; font-family:var(--mono); font-size:.65rem; color:var(--text2); }
+.dot { width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 7px var(--green); animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+/* ── Stepper ── */
+.stepper {
+  display:flex; align-items:center; justify-content:center;
+  padding:10px 20px; gap:0; flex-shrink:0;
+  background:var(--surface); border-bottom:1px solid var(--border);
+}
+.step {
+  display:flex; align-items:center; gap:7px; padding:0 10px;
+  font-family:var(--mono); font-size:.62rem; color:var(--text3); transition:color .3s;
+}
+.step::after { content:'----'; color:var(--border2); font-size:.5rem; letter-spacing:-.05em; }
+.step:last-child::after { content:''; }
+.step-num {
+  width:22px; height:22px; border-radius:50%;
+  border:1.5px solid var(--border2);
+  display:grid; place-items:center;
+  font-size:.65rem; font-weight:600;
+  transition:all .3s; background:var(--bg); flex-shrink:0;
+}
+.step.active { color:var(--text); }
+.step.active .step-num { border-color:var(--accent); color:var(--accent); background:var(--accentglo); box-shadow:0 0 10px var(--accentglo); }
+.step.done   { color:var(--green); }
+.step.done .step-num { border-color:var(--green); color:var(--green); background:rgba(0,229,160,.1); }
+.slabel { display:none; }
+@media(min-width:560px){ .slabel { display:inline; } }
+
+/* ── Two-panel layout ── */
+.workspace {
+  display:flex; flex:1; overflow:hidden; min-height:0;
+}
+
+/* ── LEFT: Chat panel ── */
+.panel-left {
+  display:flex; flex-direction:column;
+  width:400px; min-width:320px; max-width:420px; flex-shrink:0;
+  border-right:1px solid var(--border);
+  background:var(--bg);
+  position:relative;
+}
+.panel-left::before {
+  content:''; position:absolute; inset:0;
+  background-image: linear-gradient(var(--border) 1px,transparent 1px), linear-gradient(90deg,var(--border) 1px,transparent 1px);
+  background-size:48px 48px; opacity:.08; pointer-events:none;
+}
+#messages {
+  flex:1; overflow-y:auto; padding:16px 14px;
+  display:flex; flex-direction:column; gap:14px;
+  position:relative; z-index:1; scroll-behavior:smooth;
+}
+#messages::-webkit-scrollbar { width:3px; }
+#messages::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
+
+/* ── RIGHT: Data panel ── */
+.panel-right {
+  flex:1; overflow-y:auto; display:flex; flex-direction:column;
+  background: linear-gradient(160deg,#090f1b 0%,#0a1525 100%);
+  position:relative;
+}
+.panel-right::-webkit-scrollbar { width:4px; }
+.panel-right::-webkit-scrollbar-thumb { background:var(--border2); border-radius:4px; }
+.panel-right::before {
+  content:''; position:absolute; inset:0;
+  background-image: linear-gradient(var(--border) 1px,transparent 1px), linear-gradient(90deg,var(--border) 1px,transparent 1px);
+  background-size:48px 48px; opacity:.07; pointer-events:none;
+}
+#right-content {
+  flex:1; padding:20px 24px;
+  display:flex; flex-direction:column; gap:20px;
+  position:relative; z-index:1;
+}
+
+/* Empty state for right panel */
+.right-empty {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:16px;
+  color:var(--text3); text-align:center; padding:40px;
+}
+.right-empty-icon { font-size:3rem; opacity:.4; }
+.right-empty-title { font-family:var(--head); font-size:1.1rem; font-weight:700; color:var(--text2); }
+.right-empty-sub { font-family:var(--mono); font-size:.7rem; line-height:1.8; }
+
+/* Right panel section labels */
+.rpanel-label {
+  font-family:var(--mono); font-size:.62rem; color:var(--accent);
+  letter-spacing:.12em; text-transform:uppercase;
+  display:flex; align-items:center; gap:8px; margin-bottom:10px;
+}
+.rpanel-label::after {
+  content:''; flex:1; height:1px; background:var(--border2); opacity:.5;
+}
+
+/* Image in right panel */
+.right-image-wrap {
+  border-radius:10px; overflow:hidden;
+  border:1px solid var(--border2);
+  background:var(--surface2);
+  position:relative;
+}
+.right-image-wrap img {
+  width:100%; display:block;
+  object-fit:contain; /* maintains aspect ratio */
+  max-height:420px;
+  background:#000;
+}
+.right-image-meta {
+  padding:8px 12px;
+  display:flex; justify-content:space-between; align-items:center;
+  border-top:1px solid var(--border);
+  font-family:var(--mono); font-size:.65rem; color:var(--text2);
+}
+
+/* Table in right panel */
+.tbl-wrap { overflow-x:auto; border-radius:10px; border:1px solid var(--border2); }
+.tbl-wrap::-webkit-scrollbar { height:4px; }
+.tbl-wrap::-webkit-scrollbar-thumb { background:var(--border2); border-radius:4px; }
+table { width:100%; border-collapse:collapse; font-size:.77rem; }
+thead { background:rgba(0,170,255,.07); }
+th {
+  padding:9px 11px; text-align:left;
+  font-family:var(--mono); font-size:.6rem; color:var(--accent);
+  letter-spacing:.06em; text-transform:uppercase;
+  border-bottom:1px solid var(--border2); white-space:nowrap;
+}
+td { padding:7px 11px; border-bottom:1px solid var(--border); vertical-align:middle; }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:rgba(0,170,255,.04); }
+td input, td select {
+  background:transparent; border:none; outline:none;
+  color:var(--text); width:100%; font:inherit; font-size:.77rem;
+  padding:2px 3px; border-radius:4px; transition:background .2s;
+}
+td input:focus, td select:focus { background:rgba(0,170,255,.1); box-shadow:0 0 0 1px var(--accent); }
+td select option { background:var(--surface2); color:var(--text); }
+.c-hi  { color:var(--green); font-family:var(--mono); font-size:.65rem; }
+.c-med { color:var(--amber); font-family:var(--mono); font-size:.65rem; }
+.c-lo  { color:var(--red);   font-family:var(--mono); font-size:.65rem; }
+
+/* ── Chat messages ── */
+.msg { display:flex; gap:9px; animation:slideup .3s ease both; }
+.msg.user { flex-direction:row-reverse; }
+@keyframes slideup { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+.avatar {
+  width:28px; height:28px; flex-shrink:0; border-radius:8px;
+  display:grid; place-items:center; font-size:13px;
+}
+.msg.bot  .avatar { background:linear-gradient(135deg,var(--accent2),var(--accent)); box-shadow:0 0 8px var(--accentglo); }
+.msg.user .avatar { background:var(--surface2); border:1px solid var(--border2); }
+.bubble {
+  flex:1; min-width:0;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:0 11px 11px 11px;
+  padding:10px 13px; line-height:1.65; font-size:.84rem;
+}
+.msg.user .bubble { background:var(--surface2); border-color:var(--border2); border-radius:11px 0 11px 11px; }
+.bubble.glow { border-color:var(--accent); box-shadow:0 0 16px rgba(0,170,255,.09); }
+.sender { font-family:var(--mono); font-size:.58rem; color:var(--text2); margin-bottom:5px; letter-spacing:.05em; }
+.msg.user .sender { text-align:right; }
+
+/* Right-panel pointer bubble (for events that go to right panel) */
+.bubble-pointer {
+  background:rgba(0,170,255,.04); border:1px dashed var(--border2);
+  border-radius:8px; padding:8px 11px;
+  font-family:var(--mono); font-size:.68rem; color:var(--text3);
+  display:flex; align-items:center; gap:7px;
+}
+.bubble-pointer .arrow { color:var(--accent); }
+
+/* Forms */
+.fgroup  { display:flex; flex-direction:column; gap:6px; margin-top:12px; }
+.flabel  { font-family:var(--mono); font-size:.65rem; color:var(--text2); letter-spacing:.05em; }
+.finput, .fselect {
+  background:var(--surface2); border:1px solid var(--border2); border-radius:8px;
+  padding:8px 12px; color:var(--text); font:inherit; font-size:.84rem;
+  outline:none; transition:border-color .2s, box-shadow .2s; width:100%;
+}
+.finput:focus, .fselect:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accentglo); }
+.fselect option { background:var(--surface2); color:var(--text); }
+
+/* Buttons */
+.btn {
+  padding:8px 18px; border:none; border-radius:8px;
+  font-family:var(--head); font-weight:700; font-size:.8rem;
+  cursor:pointer; transition:all .2s;
+  display:inline-flex; align-items:center; gap:7px;
+}
+.btn-primary {
+  background:linear-gradient(135deg,var(--accent2),var(--accent));
+  color:#fff; box-shadow:0 4px 14px rgba(0,170,255,.3);
+}
+.btn-primary:hover { box-shadow:0 6px 22px rgba(0,170,255,.5); transform:translateY(-1px); }
+.btn-ghost { background:transparent; color:var(--text2); border:1px solid var(--border2); }
+.btn-ghost:hover { border-color:var(--accent); color:var(--accent); }
+.btn:disabled { opacity:.4; cursor:not-allowed; transform:none !important; }
+.abar { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; justify-content:flex-end; }
+
+/* Thinking */
+.thinking { display:flex; align-items:center; gap:9px; color:var(--text2); font-family:var(--mono); font-size:.72rem; }
+.tdots span { display:inline-block; width:5px; height:5px; background:var(--accent); border-radius:50%; animation:bounce .8s ease-in-out infinite; margin:0 2px; }
+.tdots span:nth-child(2){ animation-delay:.15s; }
+.tdots span:nth-child(3){ animation-delay:.3s; }
+@keyframes bounce { 0%,80%,100%{transform:scale(.6)} 40%{transform:scale(1)} }
+
+/* Result card */
+.rcard { background:rgba(0,229,160,.04); border:1px solid rgba(0,229,160,.2); border-radius:11px; padding:16px; }
+.rcard h4 { font-family:var(--head); color:var(--green); font-size:.9rem; margin-bottom:10px; }
+.rstat { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid rgba(255,255,255,.05); font-size:.82rem; }
+.rstat:last-child { border-bottom:none; }
+.rval { font-family:var(--mono); font-size:.75rem; color:var(--accent); }
+
+/* Error box */
+.errbox { background:rgba(255,77,106,.06); border:1px solid rgba(255,77,106,.25); border-radius:9px; padding:10px 14px; font-size:.8rem; color:var(--red); font-family:var(--mono); }
+
+/* Upload zone */
+.upzone {
+  border:2px dashed var(--border2); border-radius:10px;
+  padding:24px 16px; text-align:center; cursor:pointer;
+  transition:all .25s; background:rgba(0,170,255,.02); margin-top:10px;
+  position:relative; overflow:hidden;
+}
+.upzone:hover { border-color:var(--accent); background:var(--accentglo); }
+.upzone.drag  { border-color:var(--accent); background:var(--accentglo); }
+.upzone-icon  { font-size:2rem; display:block; margin-bottom:7px; }
+.upzone-title { font-family:var(--head); font-weight:700; font-size:.88rem; color:var(--text); }
+.upzone-sub   { font-size:.74rem; color:var(--text2); margin-top:3px; }
+
+/* Footer / chat input */
+.chat-footer {
+  border-top:1px solid var(--border); background:var(--surface);
+  padding:10px 14px; display:flex; align-items:flex-end; gap:8px; flex-shrink:0;
+}
+#userinput {
+  flex:1; background:var(--surface2); border:1px solid var(--border2);
+  border-radius:9px; padding:8px 12px;
+  color:var(--text); font:inherit; font-size:.84rem;
+  outline:none; resize:none; max-height:80px; transition:border-color .2s;
+}
+#userinput:focus { border-color:var(--accent); }
+#userinput::placeholder { color:var(--text3); }
+#sendbtn {
+  background:linear-gradient(135deg,var(--accent2),var(--accent));
+  border:none; border-radius:9px; width:38px; height:38px;
+  display:grid; place-items:center; cursor:pointer; font-size:15px;
+  box-shadow:0 0 10px rgba(0,170,255,.3); transition:all .2s; flex-shrink:0; color:#fff;
+}
+#sendbtn:hover { transform:scale(1.08); box-shadow:0 0 18px rgba(0,170,255,.5); }
+
+/* Right panel header bar */
+.right-header {
+  padding:14px 24px 0;
+  display:flex; align-items:center; justify-content:space-between;
+  flex-shrink:0;
+}
+.right-header-title {
+  font-family:var(--mono); font-size:.65rem; color:var(--text3);
+  letter-spacing:.1em; text-transform:uppercase;
+}
+.right-header-badge {
+  font-family:var(--mono); font-size:.6rem;
+  background:var(--accentglo); border:1px solid var(--border2);
+  color:var(--accent); padding:2px 8px; border-radius:20px;
+}
+
+/* Item results list */
+.item-row {
+  padding:7px 0; border-bottom:1px solid rgba(255,255,255,.05);
+  display:flex; flex-direction:column; gap:3px;
+}
+.item-row:last-child { border-bottom:none; }
+.item-row-top { display:flex; justify-content:space-between; align-items:center; font-size:.82rem; }
+.item-err-detail { font-family:var(--mono); font-size:.62rem; color:var(--amber); word-break:break-all; white-space:pre-wrap; opacity:.85; }
+
+@media(max-width:768px) {
+  .workspace { flex-direction:column; }
+  .panel-left { width:100%; max-width:100%; border-right:none; border-bottom:1px solid var(--border); height:50%; }
+  .panel-right { height:50%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <a href="https://www.iistech.com/" target="_blank" class="logo-wrap">
+    <div class="logo-icon">&#9889;</div>
+    <div>
+      <div class="logo-text">IIS Technologies</div>
+      <div class="logo-sub">iistech.com</div>
+    </div>
+  </a>
+  <div class="hdivider"></div>
+  <div>
+    <div class="app-name">Rack Discovery AI</div>
+    <span class="app-tag">Claude Vision + Sunbird dcTrack</span>
+  </div>
+  <div class="hstatus">
+    <div class="dot"></div>
+    <span>Connected</span>
+  </div>
+</header>
+
+<div class="stepper">
+  <div class="step active" id="s1"><div class="step-num">1</div><span class="slabel">Upload</span></div>
+  <div class="step" id="s2"><div class="step-num">2</div><span class="slabel">Review</span></div>
+  <div class="step" id="s3"><div class="step-num">3</div><span class="slabel">Location</span></div>
+  <div class="step" id="s4"><div class="step-num">4</div><span class="slabel">Push</span></div>
+</div>
+
+<div class="workspace">
+
+  <!-- LEFT: Chat -->
+  <div class="panel-left">
+    <div id="messages"></div>
+    <div class="chat-footer">
+      <textarea id="userinput" rows="1" placeholder="Type a message..."></textarea>
+      <button id="sendbtn" title="Send">&#10148;</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: Visual data panel -->
+  <div class="panel-right">
+    <div class="right-header">
+      <span class="right-header-title">Visual Data Panel</span>
+      <span class="right-header-badge" id="right-badge">Awaiting upload</span>
+    </div>
+    <div id="right-content">
+      <!-- Empty state -->
+      <div class="right-empty" id="right-empty">
+        <div class="right-empty-icon">🖥️</div>
+        <div class="right-empty-title">Nothing here yet</div>
+        <div class="right-empty-sub">
+          Upload a rack photo on the left<br/>
+          Your image, inventory table<br/>and push results will appear here
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+
+var WEBHOOK      = 'https://workflows.apps.ocp419.crucible.iisl.com/webhook/rack-to-dctrack';
+var DCTRACK_CHAT = 'https://workflows.apps.ocp419.crucible.iisl.com/webhook/dctrack-chat/chat/completions';
+
+var APP = {
+  step: 1,
+  b64: null,
+  mime: null,
+  inventory: [],
+  locations: [],
+  cabinet: '',
+  location: '',
+  session: 'sess_' + Date.now()
+};
+
+/* ─── Stepper ─── */
+function setStep(n) {
+  APP.step = n;
+  for (var i = 1; i <= 4; i++) {
+    var el = document.getElementById('s' + i);
+    if (!el) continue;
+    if (i < n)        el.className = 'step done';
+    else if (i === n) el.className = 'step active';
+    else              el.className = 'step';
+  }
+}
+
+/* ─── Left chat helpers ─── */
+var msgsEl = document.getElementById('messages');
+
+function addMsg(role, html, glow) {
+  var wrap = document.createElement('div');
+  wrap.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
+
+  var av = document.createElement('div');
+  av.className = 'avatar';
+  av.textContent = role === 'user' ? '\uD83D\uDC64' : '\u26A1';
+
+  var bub = document.createElement('div');
+  bub.className = glow ? 'bubble glow' : 'bubble';
+
+  var sndr = document.createElement('div');
+  sndr.className = 'sender';
+  sndr.textContent = role === 'user' ? 'YOU' : 'IIS RACK AI';
+
+  var body = document.createElement('div');
+  body.innerHTML = html;
+
+  bub.appendChild(sndr);
+  bub.appendChild(body);
+  wrap.appendChild(av);
+  wrap.appendChild(bub);
+  msgsEl.appendChild(wrap);
+  msgsEl.scrollTop = msgsEl.scrollHeight;
+  return body;
+}
+
+function addThinking() {
+  var id = 'tk_' + Date.now();
+  var html = '<div class="thinking" id="' + id + '">'
+    + '<div class="tdots"><span></span><span></span><span></span></div>'
+    + '<span>Processing&hellip;</span></div>';
+  addMsg('bot', html);
+  msgsEl.scrollTop = msgsEl.scrollHeight;
+  return id;
+}
+
+function removeThinking(id) {
+  var el = document.getElementById(id);
+  if (el) {
+    var row = el.closest ? el.closest('.msg') : el.parentNode;
+    while (row && !row.classList.contains('msg')) row = row.parentNode;
+    if (row) row.parentNode.removeChild(row);
+  }
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function makeBtn(label, cls, onClick) {
+  var b = document.createElement('button');
+  b.className = 'btn ' + cls;
+  b.textContent = label;
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+function makeAbar(buttons) {
+  var bar = document.createElement('div');
+  bar.className = 'abar';
+  buttons.forEach(function(b) { bar.appendChild(b); });
+  return bar;
+}
+
+/* ─── Right panel helpers ─── */
+var rightContent = document.getElementById('right-content');
+var rightBadge   = document.getElementById('right-badge');
+
+function clearRight() {
+  rightContent.innerHTML = '';
+}
+
+function setRightBadge(txt, color) {
+  rightBadge.textContent = txt;
+  rightBadge.style.color = color || 'var(--accent)';
+  rightBadge.style.borderColor = color ? color.replace('var(--','rgba(').replace(')',',.3)') : '';
+}
+
+function rightSection(labelText) {
+  var wrap = document.createElement('div');
+  var lbl = document.createElement('div');
+  lbl.className = 'rpanel-label';
+  lbl.textContent = labelText;
+  wrap.appendChild(lbl);
+  rightContent.appendChild(wrap);
+  return wrap;
+}
+
+/* ─── Welcome ─── */
+function showWelcome() {
+  var html = '<p>&#128075; Welcome to <strong>IIS Tech Rack Discovery AI</strong>'
+    + ' &mdash; intelligent rack to <strong>Sunbird dcTrack</strong>.</p>'
+    + '<br/><p style="color:var(--text2);font-size:.82rem">Follow 4 steps to discover and register your cabinet:</p><br/>'
+    + '<p style="font-size:.8rem">'
+    + '<span style="color:var(--accent)">&#9312;</span> Upload a rack cabinet photo<br/>'
+    + '<span style="color:var(--accent)">&#9313;</span> Review &amp; correct the inventory<br/>'
+    + '<span style="color:var(--accent)">&#9314;</span> Choose a dcTrack room / location<br/>'
+    + '<span style="color:var(--accent)">&#9315;</span> Push as a new cabinet with all items'
+    + '</p>';
+
+  var body = addMsg('bot', html, true);
+
+  var zone = document.createElement('div');
+  zone.className = 'upzone';
+  zone.id = 'upzone';
+
+  var inp = document.createElement('input');
+  inp.type = 'file'; inp.id = 'fileinp'; inp.accept = 'image/*';
+  inp.setAttribute('aria-label', 'Upload rack photo');
+  inp.style.cssText = 'position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:2;';
+  inp.addEventListener('change', handleFileSelect);
+
+  var icon = document.createElement('span');
+  icon.className = 'upzone-icon'; icon.textContent = '\uD83D\uDCF7';
+
+  var title = document.createElement('div');
+  title.className = 'upzone-title'; title.textContent = 'Drop or click to upload rack photo';
+
+  var sub = document.createElement('div');
+  sub.className = 'upzone-sub'; sub.textContent = 'Supports JPG, PNG, WebP \u00B7 Max 20 MB';
+
+  zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', function() { zone.classList.remove('drag'); });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault(); zone.classList.remove('drag');
+    var file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) loadFile(file);
+  });
+
+  zone.appendChild(inp); zone.appendChild(icon); zone.appendChild(title); zone.appendChild(sub);
+  body.appendChild(zone);
+}
+
+/* ─── File handling ─── */
+function handleFileSelect(e) { var file = e.target.files[0]; if (file) loadFile(file); }
+
+function loadFile(file) {
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    var dataUrl = ev.target.result;
+    var parts = dataUrl.split(',');
+    var mimeMatch = parts[0].match(/:(.*?);/);
+    APP.b64  = parts[1];
+    APP.mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    var sizeMB = (file.size / 1024 / 1024).toFixed(1);
+
+    /* Left chat: just filename + size indicator, no image */
+    var previewHtml = '<div style="font-family:var(--mono);font-size:.75rem">'
+      + esc(file.name)
+      + ' <span style="background:var(--surface2);border:1px solid var(--border2);border-radius:4px;padding:2px 6px;color:var(--text2)">'
+      + sizeMB + ' MB</span></div>';
+    addMsg('user', previewHtml);
+
+    /* Right panel: full image at proper aspect ratio */
+    clearRight();
+    var sec = rightSection('Rack Photo');
+    var imgWrap = document.createElement('div');
+    imgWrap.className = 'right-image-wrap';
+    var img = document.createElement('img');
+    img.src = dataUrl;
+    img.alt = 'Rack preview';
+    var meta = document.createElement('div');
+    meta.className = 'right-image-meta';
+    meta.innerHTML = '<span>' + esc(file.name) + '</span><span>' + sizeMB + ' MB</span>';
+    imgWrap.appendChild(img);
+    imgWrap.appendChild(meta);
+    sec.appendChild(imgWrap);
+    setRightBadge('Photo loaded', 'var(--accent)');
+
+    /* Left chat: confirmation */
+    var confirmHtml = '<p>&#9989; Image received! <span style="color:var(--accent);font-family:var(--mono)">'
+      + esc(file.name) + '</span></p>'
+      + '<br/><p style="font-size:.82rem;color:var(--text2)">Claude Vision will scan every U-slot and extract equipment details pre-mapped to dcTrack fields.</p>';
+    var confirmBody = addMsg('bot', confirmHtml, true);
+
+    confirmBody.appendChild(makeAbar([
+      makeBtn('\uD83D\uDD04 Use Different Image', 'btn btn-ghost', resetFlow),
+      makeBtn('\uD83D\uDD0D Analyze Rack', 'btn btn-primary', analyzeImage)
+    ]));
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ─── Step 1: Analyze ─── */
+function analyzeImage() {
+  if (!APP.b64) return;
+  addMsg('user', '\uD83D\uDD0D Analyze rack cabinet image');
+  var tid = addThinking();
+
+  fetch(WEBHOOK, {
+    method:'POST', mode:'cors',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ action:'analyze_image', image_base64:APP.b64, image_type:APP.mime, session_id:APP.session })
+  })
+  .then(function(r) {
+    var status = r.status;
+    return r.text().then(function(txt) {
+      if (!txt || txt.trim().length === 0) throw new Error('n8n returned an empty response (status ' + status + '). Check the workflow is Active.');
+      var data;
+      try { data = JSON.parse(txt); } catch(e) { throw new Error('Invalid JSON from server (status ' + status + '): ' + txt.slice(0,120)); }
+      if (status >= 400) throw new Error((data && (data.error || data.message)) || ('Server error ' + status));
+      return data;
+    });
+  })
+  .then(function(data) {
+    removeThinking(tid);
+    if (!data.success) throw new Error(data.error || 'Analysis failed');
+    APP.inventory = data.equipment || [];
+    setStep(2);
+    showTable(data);
+  })
+  .catch(function(err) {
+    removeThinking(tid);
+    var isCors = err.message.indexOf('fetch') !== -1 || err.message.indexOf('Failed') !== -1 || err.message.indexOf('NetworkError') !== -1;
+    var detail = isCors
+      ? '\u274C Failed to reach the n8n workflow.<br/><br/><span style="font-size:.73rem;color:var(--text2)">Possible causes:<br/>&bull; Workflow not active<br/>&bull; CORS not enabled<br/>&bull; Network / VPN issue</span>'
+      : '\u274C Analysis failed: ' + esc(err.message);
+    var body = addMsg('bot', '<div class="errbox">' + detail + '</div>');
+    body.appendChild(makeAbar([makeBtn('\u21BA Retry', 'btn btn-ghost', analyzeImage)]));
+  });
+}
+
+/* ─── Step 2: Editable table ─── */
+function showTable(data) {
+  var eq = data.equipment || [];
+  var confMap = { high:'c-hi', medium:'c-med', low:'c-lo' };
+
+  /* Left chat: short summary + action buttons */
+  var intro = '<p>\uD83D\uDCCB Found <strong>' + eq.length + ' equipment items</strong>.</p>'
+    + '<p style="color:var(--text2);font-size:.78rem;margin-top:4px">Review &amp; edit the inventory table on the right &rarr;</p>';
+  var body = addMsg('bot', intro, true);
+  body.appendChild(makeAbar([
+    makeBtn('\uD83D\uDD04 Start Over', 'btn btn-ghost', resetFlow),
+    makeBtn('\uD83D\uDCCD Set Location &amp; Push \u2192', 'btn btn-primary', showLocationStep)
+  ]));
+
+  /* Right panel: add table below the image */
+  var sec = rightSection('Vision Inventory (' + eq.length + ' items)');
+  setRightBadge(eq.length + ' items found', 'var(--green)');
+
+  var wrap = document.createElement('div');
+  wrap.className = 'tbl-wrap';
+
+  var tbl   = document.createElement('table');
+  var thead = document.createElement('thead');
+  var hrow  = document.createElement('tr');
+  ['Pos','Class','Make','Model','U Ht','U Pos','PDU Side','Notes','','Conf'].forEach(function(c) {
+    var th = document.createElement('th'); th.textContent = c; hrow.appendChild(th);
+  });
+  thead.appendChild(hrow); tbl.appendChild(thead);
+
+  var tbody = document.createElement('tbody');
+
+  function buildRow(item, idx) {
+    var tr = document.createElement('tr');
+    tr.dataset.idx = idx;
+
+    var tdPos = document.createElement('td');
+    tdPos.style.cssText = 'white-space:nowrap;color:var(--text2);font-family:var(--mono);font-size:.7rem';
+    tdPos.textContent = item.position || ('U' + (idx + 1));
+    tr.appendChild(tdPos);
+
+    var tdClass = document.createElement('td');
+    var sel = document.createElement('select');
+    sel.style.minWidth = '80px';
+    ['Device','Network','Passive','Rack PDU','Cabinet','Data Panel','KVM Switch','UPS','Storage','Other'].forEach(function(cls) {
+      var opt = document.createElement('option');
+      opt.value = cls; opt.textContent = cls;
+      if ((item.dctrack_class || 'Device') === cls) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', function() { APP.inventory[parseInt(tr.dataset.idx,10)].dctrack_class = this.value; });
+    tdClass.appendChild(sel); tr.appendChild(tdClass);
+
+    var tdMake = document.createElement('td');
+    var inpMake = document.createElement('input');
+    inpMake.type = 'text'; inpMake.value = item.dctrack_make || item.brand || ''; inpMake.placeholder = 'Make';
+    inpMake.addEventListener('input', function() { APP.inventory[parseInt(tr.dataset.idx,10)].dctrack_make = this.value; });
+    tdMake.appendChild(inpMake); tr.appendChild(tdMake);
+
+    var tdModel = document.createElement('td');
+    var inpModel = document.createElement('input');
+    inpModel.type = 'text'; inpModel.value = item.dctrack_model || item.model || ''; inpModel.placeholder = 'Model';
+    inpModel.style.minWidth = '120px';
+    inpModel.addEventListener('input', function() { APP.inventory[parseInt(tr.dataset.idx,10)].dctrack_model = this.value; });
+    tdModel.appendChild(inpModel); tr.appendChild(tdModel);
+
+    var tdUH = document.createElement('td');
+    var inpUH = document.createElement('input');
+    inpUH.type = 'number'; inpUH.value = item.dctrack_u_height || 1; inpUH.min = 1; inpUH.max = 48; inpUH.style.width = '46px';
+    inpUH.addEventListener('input', function() { APP.inventory[parseInt(tr.dataset.idx,10)].dctrack_u_height = parseInt(this.value,10)||1; });
+    tdUH.appendChild(inpUH); tr.appendChild(tdUH);
+
+    var tdUP = document.createElement('td');
+    var inpUP = document.createElement('input');
+    inpUP.type = 'number'; inpUP.value = item.dctrack_u_position || (idx + 1); inpUP.min = 1; inpUP.max = 84; inpUP.style.width = '46px';
+    inpUP.addEventListener('input', function() { APP.inventory[parseInt(tr.dataset.idx,10)].dctrack_u_position = parseInt(this.value,10)||1; });
+    tdUP.appendChild(inpUP); tr.appendChild(tdUP);
+
+    /* ── PDU Side — only active for Rack PDU class ── */
+    var tdPduSide = document.createElement('td');
+    var selPdu = document.createElement('select');
+    selPdu.style.cssText = 'min-width:90px;font-size:.72rem;';
+    var pduOpts = ['—','Left Rear','Right Rear','Left Front','Right Front'];
+    pduOpts.forEach(function(opt) {
+      var o = document.createElement('option');
+      o.value = opt === '—' ? '' : opt;
+      o.textContent = opt;
+      if ((item.dctrack_pdu_position || '') === o.value) o.selected = true;
+      selPdu.appendChild(o);
+    });
+    selPdu.addEventListener('change', function() {
+      APP.inventory[parseInt(tr.dataset.idx,10)].dctrack_pdu_position = this.value;
+    });
+    tdPduSide.appendChild(selPdu); tr.appendChild(tdPduSide);
+
+    /* Show/hide PDU side + dim U fields depending on class */
+    function applyPduVisibility(cls) {
+      var isPdu = cls === 'Rack PDU';
+      tdPduSide.style.opacity  = isPdu ? '1'   : '0.18';
+      tdPduSide.style.pointerEvents = isPdu ? 'auto' : 'none';
+      tdUH.style.opacity = isPdu ? '0.35' : '1';
+      tdUP.style.opacity = isPdu ? '0.35' : '1';
+    }
+    applyPduVisibility(item.dctrack_class || 'Device');
+    sel.addEventListener('change', function() { applyPduVisibility(this.value); });
+
+    var tdNotes = document.createElement('td');
+    var inpNotes = document.createElement('input');
+    inpNotes.type = 'text'; inpNotes.value = item.dctrack_notes || item.specifications || ''; inpNotes.placeholder = 'Notes';
+    inpNotes.style.minWidth = '110px';
+    inpNotes.addEventListener('input', function() { APP.inventory[parseInt(tr.dataset.idx,10)].dctrack_notes = this.value; });
+    tdNotes.appendChild(inpNotes); tr.appendChild(tdNotes);
+
+    /* ── Delete button ── */
+    var tdDel = document.createElement('td');
+    tdDel.style.cssText = 'text-align:center;padding:4px 6px;';
+    var delBtn = document.createElement('button');
+    delBtn.textContent = '✕';
+    delBtn.title = 'Delete this row';
+    delBtn.style.cssText = 'background:rgba(255,77,106,.12);border:1px solid rgba(255,77,106,.3);color:var(--red);'
+      + 'border-radius:5px;width:24px;height:24px;cursor:pointer;font-size:.75rem;line-height:1;'
+      + 'display:grid;place-items:center;transition:all .15s;flex-shrink:0;';
+    delBtn.addEventListener('mouseenter', function() { this.style.background='rgba(255,77,106,.28)'; });
+    delBtn.addEventListener('mouseleave', function() { this.style.background='rgba(255,77,106,.12)'; });
+    delBtn.addEventListener('click', function() {
+      var rowIdx = parseInt(tr.dataset.idx, 10);
+      APP.inventory.splice(rowIdx, 1);
+      tbody.removeChild(tr);
+      /* Re-index remaining rows */
+      Array.from(tbody.querySelectorAll('tr')).forEach(function(r, newI) { r.dataset.idx = newI; });
+      countBadge.textContent = APP.inventory.length + ' items';
+    });
+    tdDel.appendChild(delBtn); tr.appendChild(tdDel);
+
+    var tdConf = document.createElement('td');
+    tdConf.className = confMap[item.confidence] || 'c-med';
+    tdConf.textContent = item.confidence || '?';
+    tr.appendChild(tdConf);
+
+    return tr;
+  }
+
+  eq.forEach(function(item, idx) { tbody.appendChild(buildRow(item, idx)); });
+  tbl.appendChild(tbody); wrap.appendChild(tbl); sec.appendChild(wrap);
+
+  /* ── Add Row button ── */
+  var addBar = document.createElement('div');
+  addBar.style.cssText = 'display:flex;justify-content:flex-end;margin-top:8px;';
+  var addBtn = document.createElement('button');
+  addBtn.className = 'btn btn-ghost';
+  addBtn.style.cssText = 'font-size:.75rem;padding:6px 14px;border-color:var(--border2);';
+  addBtn.innerHTML = '＋ Add Row';
+  addBtn.addEventListener('click', function() {
+    var newItem = {
+      equipment_type: '', dctrack_class:'Device', dctrack_make:'', dctrack_model:'',
+      dctrack_u_height:1, dctrack_u_position: APP.inventory.length + 1,
+      dctrack_notes:'', dctrack_pdu_position:'', confidence:'low'
+    };
+    APP.inventory.push(newItem);
+    var newIdx = APP.inventory.length - 1;
+    var newRow = buildRow(newItem, newIdx);
+    tbody.appendChild(newRow);
+    countBadge.textContent = APP.inventory.length + ' items';
+    /* Focus the class select of the new row */
+    var firstSelect = newRow.querySelector('select');
+    if (firstSelect) firstSelect.focus();
+  });
+  addBar.appendChild(addBtn);
+  sec.appendChild(addBar);
+
+  /* live item count badge */
+  var countBadge = sec.querySelector('.rpanel-label') || { textContent:'' };
+  /* update the section label to include a live count */
+  var lbl = sec.querySelector('.rpanel-label');
+  if (lbl) { lbl.textContent = 'Vision Inventory'; }
+  var countSpan = document.createElement('span');
+  countSpan.style.cssText = 'font-family:var(--mono);font-size:.6rem;background:var(--accentglo);border:1px solid var(--border2);color:var(--accent);padding:1px 8px;border-radius:20px;margin-left:6px;';
+  countSpan.textContent = eq.length + ' items';
+  if (lbl) lbl.appendChild(countSpan);
+  countBadge = countSpan;
+}
+
+/* ─── Fetch locations ─── */
+function fetchLocations() {
+  return fetch(WEBHOOK, {
+    method:'POST', mode:'cors',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ action:'list_locations', session_id:APP.session })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.locations && data.locations.length > 0) APP.locations = data.locations;
+    return APP.locations;
+  })
+  .catch(function() { return APP.locations; });
+}
+
+function populateLocationSelect(locations) {
+  var pill = document.getElementById('loc-loading-pill');
+  var slot = document.getElementById('loc-select-slot');
+  if (!slot) return;
+  if (pill) pill.parentNode.removeChild(pill);
+
+  if (locations.length > 0) {
+    var sel = document.createElement('select');
+    sel.className = 'fselect'; sel.id = 'locselfld'; sel.style.cssText = 'width:100%;cursor:pointer;';
+
+    var defOpt = document.createElement('option');
+    defOpt.value = ''; defOpt.textContent = '\u2014 Select a dcTrack room / location \u2014';
+    sel.appendChild(defOpt);
+
+    locations.forEach(function(l) {
+      var opt = document.createElement('option');
+      opt.value = l.name || l.id || ''; opt.textContent = l.name || l.id || '';
+      sel.appendChild(opt);
+    });
+
+    var customOpt = document.createElement('option');
+    customOpt.value = '__custom__'; customOpt.textContent = '\u270F\uFE0F Type a custom location\u2026';
+    sel.appendChild(customOpt);
+
+    sel.addEventListener('change', function() {
+      if (this.value === '__custom__') {
+        var inp = document.createElement('input');
+        inp.className = 'finput'; inp.id = 'locselfld'; inp.type = 'text';
+        inp.placeholder = 'Type custom location\u2026'; inp.autofocus = true;
+        inp.addEventListener('input', function() { APP.location = this.value; });
+        slot.replaceChild(inp, sel); inp.focus(); APP.location = '';
+      } else { APP.location = this.value; }
+    });
+
+    slot.appendChild(sel);
+    if (locations.length === 1) { sel.selectedIndex = 1; APP.location = locations[0].name || locations[0].id || ''; }
+
+    var badge = document.createElement('div');
+    badge.style.cssText = 'font-family:var(--mono);font-size:.6rem;color:var(--green);margin-top:5px;';
+    badge.textContent = '\u2713 ' + locations.length + ' location' + (locations.length > 1 ? 's' : '') + ' loaded from dcTrack';
+    slot.appendChild(badge);
+
+  } else {
+    var inp = document.createElement('input');
+    inp.className = 'finput'; inp.id = 'locselfld'; inp.type = 'text';
+    inp.placeholder = 'Type location name\u2026';
+    inp.addEventListener('input', function() { APP.location = this.value; });
+    slot.appendChild(inp);
+
+    var warn = document.createElement('div');
+    warn.style.cssText = 'font-family:var(--mono);font-size:.6rem;color:var(--amber);margin-top:5px;';
+    warn.textContent = '\u26A0 Could not fetch locations \u2014 enter manually';
+    slot.appendChild(warn);
+  }
+}
+
+/* ─── Step 3: Location form ─── */
+function showLocationStep() {
+  setStep(3);
+
+  /* ── Detect cabinet row in inventory ── */
+  var cabRow = null;
+  for (var ci = 0; ci < APP.inventory.length; ci++) {
+    var r = APP.inventory[ci];
+    if ((r.dctrack_class || r.equipment_type || '').toLowerCase() === 'cabinet') {
+      cabRow = r; break;
+    }
+  }
+
+  /* If cabinet found, pre-fill name from model/make, exclude it from items push */
+  var autoName = '';
+  if (cabRow) {
+    var m = (cabRow.dctrack_model || cabRow.model || '').trim();
+    var mk = (cabRow.dctrack_make  || cabRow.brand  || '').trim();
+    autoName = m || mk || '';
+    APP.cabinet = autoName;
+    addMsg('user', '\uD83D\uDCCD Choose room / location');
+  } else {
+    addMsg('user', '\uD83D\uDCCD Choose room / location and cabinet name');
+  }
+
+  var intro = cabRow
+    ? '<p>Almost there! Cabinet <strong style="color:var(--accent)">' + esc(autoName || 'detected from inventory') + '</strong> detected from your inventory. Just select the location:</p>'
+    : '<p>Almost there! Tell me <strong>where to place this cabinet</strong> in dcTrack:</p>';
+  var body = addMsg('bot', intro, true);
+
+  /* ── If cabinet auto-detected show read-only info pill ── */
+  if (cabRow) {
+    var infoPill = document.createElement('div');
+    infoPill.style.cssText = 'display:flex;align-items:center;gap:10px;padding:9px 13px;'
+      + 'background:rgba(0,170,255,.06);border:1px solid var(--border2);border-radius:8px;'
+      + 'font-family:var(--mono);font-size:.72rem;margin-top:10px;margin-bottom:4px;';
+    infoPill.innerHTML = '<span style="color:var(--green)">&#9632; Cabinet detected</span>'
+      + '<span style="color:var(--text2)">Make:</span><span style="color:var(--text)">' + esc((cabRow.dctrack_make||cabRow.brand||'—')) + '</span>'
+      + '<span style="color:var(--text2)">Model:</span><span style="color:var(--text)">' + esc((cabRow.dctrack_model||cabRow.model||'—')) + '</span>'
+      + '<span style="color:var(--text2)">Height:</span><span style="color:var(--accent)">' + esc(String(cabRow.dctrack_u_height||'—')) + 'U</span>';
+    body.appendChild(infoPill);
+    /* Read-only visible cabinet name field — user sees it, cannot edit */
+    var cabGrpAuto = document.createElement('div'); cabGrpAuto.className = 'fgroup';
+    var cabLblAuto = document.createElement('label'); cabLblAuto.className = 'flabel';
+    cabLblAuto.textContent = 'CABINET NAME (from inventory)';
+    cabGrpAuto.appendChild(cabLblAuto);
+    var cabInpAuto = document.createElement('input');
+    cabInpAuto.className = 'finput'; cabInpAuto.id = 'cabnamefld';
+    cabInpAuto.type = 'text'; cabInpAuto.value = autoName;
+    cabInpAuto.readOnly = true;
+    cabInpAuto.style.cssText = 'opacity:0.6;cursor:not-allowed;border-color:var(--green);background:rgba(0,255,100,.04);';
+    cabGrpAuto.appendChild(cabInpAuto);
+    var cabNote = document.createElement('div');
+    cabNote.style.cssText = 'font-family:var(--mono);font-size:.6rem;color:var(--green);margin-top:4px;';
+    cabNote.textContent = '\u2713 Auto-filled from detected cabinet row — not editable';
+    cabGrpAuto.appendChild(cabNote);
+    body.appendChild(cabGrpAuto);
+  }
+
+  /* ── Location dropdown ── */
+  var locGrp = document.createElement('div'); locGrp.className = 'fgroup';
+  var locLbl = document.createElement('label'); locLbl.className = 'flabel'; locLbl.textContent = 'ROOM / LOCATION';
+  locGrp.appendChild(locLbl);
+
+  var loadPill = document.createElement('div');
+  loadPill.id = 'loc-loading-pill';
+  loadPill.style.cssText = 'display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;font-family:var(--mono);font-size:.74rem;color:var(--accent);';
+  loadPill.innerHTML = '<div class="tdots"><span></span><span></span><span></span></div><span>Fetching dcTrack locations\u2026</span>';
+  locGrp.appendChild(loadPill);
+
+  var locSlot = document.createElement('div'); locSlot.id = 'loc-select-slot';
+  locGrp.appendChild(locSlot);
+  body.appendChild(locGrp);
+
+  /* ── Cabinet name — only show if NOT auto-detected ── */
+  if (!cabRow) {
+    var cabGrp = document.createElement('div'); cabGrp.className = 'fgroup';
+    var cabLbl = document.createElement('label'); cabLbl.className = 'flabel'; cabLbl.textContent = 'NEW CABINET NAME';
+    cabGrp.appendChild(cabLbl);
+    var cabInp = document.createElement('input');
+    cabInp.className = 'finput'; cabInp.id = 'cabnamefld'; cabInp.type = 'text'; cabInp.placeholder = 'e.g. CAB-A-01';
+    cabInp.addEventListener('input', function() { APP.cabinet = this.value; });
+    cabGrp.appendChild(cabInp); body.appendChild(cabGrp);
+  }
+
+  /* ── Rack height — pre-fill from cabinet row if available ── */
+  var hGrp = document.createElement('div'); hGrp.className = 'fgroup';
+  var hLbl = document.createElement('label'); hLbl.className = 'flabel'; hLbl.textContent = 'RACK HEIGHT (U)';
+  hGrp.appendChild(hLbl);
+  var hInp = document.createElement('input');
+  hInp.className = 'finput'; hInp.id = 'ufld'; hInp.type = 'number';
+  hInp.value = cabRow ? String(cabRow.dctrack_u_height || 42) : '42';
+  hInp.min = 1; hInp.max = 84;
+  hInp.style.maxWidth = '90px';
+  if (cabRow) {
+    hInp.style.cssText += 'border-color:var(--green);';
+    var hNote = document.createElement('div');
+    hNote.style.cssText = 'font-family:var(--mono);font-size:.6rem;color:var(--green);margin-top:4px;';
+    hNote.textContent = '\u2713 Pre-filled from detected cabinet row';
+    hGrp.appendChild(hInp); hGrp.appendChild(hNote);
+  } else {
+    hGrp.appendChild(hInp);
+  }
+  body.appendChild(hGrp);
+
+  body.appendChild(makeAbar([
+    makeBtn('\u2190 Back', 'btn btn-ghost', function() { setStep(2); }),
+    makeBtn('\uD83D\uDE80 Create Cabinet in dcTrack', 'btn btn-primary', pushToDcTrack)
+  ]));
+
+  fetchLocations().then(function(locations) { populateLocationSelect(locations); }).catch(function() { populateLocationSelect([]); });
+}
+
+/* ─── Step 4: Push ─── */
+function pushToDcTrack() {
+  var locEl  = document.getElementById('locselfld');
+  var cabEl  = document.getElementById('cabnamefld');
+  var uEl    = document.getElementById('ufld');
+
+  var locationName = '';
+  if (locEl) {
+    locationName = (locEl.tagName === 'SELECT' ? locEl.options[locEl.selectedIndex].value : locEl.value) || '';
+    locationName = locationName.trim();
+    if (locationName === '__custom__') locationName = '';
+  }
+  locationName = locationName || APP.location;
+  var cabinetName = (cabEl ? cabEl.value.trim() : '') || APP.cabinet;
+  var uHeight     = parseInt(uEl ? uEl.value : '42', 10) || 42;
+
+  if (!locationName) { showToast('\u26A0 Please enter a room / location'); return; }
+  if (!cabinetName)  { showToast('\u26A0 Please enter a cabinet name');    return; }
+
+  APP.location = locationName; APP.cabinet = cabinetName;
+
+  /* Exclude cabinet-class rows — the cabinet itself is created separately by n8n */
+  var itemsToPush = APP.inventory.filter(function(r) {
+    var cls = (r.dctrack_class || r.equipment_type || '').toLowerCase();
+    return cls !== 'cabinet' && cls !== 'rack enclosure';
+  });
+
+  addMsg('user', '\uD83D\uDE80 Create cabinet <strong>' + esc(cabinetName)
+    + '</strong> in <strong>' + esc(locationName) + '</strong> with ' + itemsToPush.length + ' items');
+  var tid = addThinking();
+  setStep(4);
+  setRightBadge('Pushing to dcTrack\u2026', 'var(--amber)');
+
+  /* Find cabinet row to pass its make/model to n8n */
+  var cabRowForPush = APP.inventory.filter(function(r) {
+    return (r.dctrack_class || r.equipment_type || '').toLowerCase() === 'cabinet';
+  })[0] || null;
+  var cabMake  = cabRowForPush ? (cabRowForPush.dctrack_make  || cabRowForPush.brand  || '') : '';
+  var cabModel = cabRowForPush ? (cabRowForPush.dctrack_model || cabRowForPush.model   || '') : '';
+
+  fetch(WEBHOOK, {
+    method:'POST', mode:'cors',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      action:'push_to_dctrack', inventory:itemsToPush,
+      cabinet_name:cabinetName, location_name:locationName,
+      cabinet_make:cabMake, cabinet_model:cabModel,
+      u_height:uHeight, session_id:APP.session
+    })
+  })
+  .then(function(r) {
+    var status = r.status;
+    return r.text().then(function(txt) {
+      if (!txt || txt.trim().length === 0)
+        throw new Error('n8n returned an empty response (status ' + status + '). Check the workflow is active and MCP server is reachable.');
+      var data;
+      try { data = JSON.parse(txt); } catch(e) { throw new Error('Invalid JSON from server (status ' + status + '): ' + txt.slice(0,120)); }
+      if (status >= 400) throw new Error((data && (data.error || data.message)) || ('Server error ' + status));
+      return data;
+    });
+  })
+  .then(function(data) {
+    removeThinking(tid);
+    if (!data.success) throw new Error(data.error || 'Push failed');
+    APP.b64 = null; /* release wizard gate — chat is now free for NLP queries */
+    showResult(data);
+  })
+  .catch(function(err) {
+    removeThinking(tid);
+    setRightBadge('Push failed', 'var(--red)');
+    var isCors = err.message.indexOf('fetch') !== -1 || err.message.indexOf('Failed') !== -1 || err.message.indexOf('NetworkError') !== -1;
+    var detail = isCors
+      ? '\u274C Cannot reach the n8n workflow.<br/><span style="font-size:.73rem;color:var(--text2)">&bull; Ensure workflow is <strong>Active</strong> in n8n<br/>&bull; Check CORS headers on Webhook node<br/>&bull; Confirm VPN / network access to <code>ocp419.crucible.iisl.com</code></span>'
+      : '\u274C Push failed: ' + esc(err.message);
+    var body = addMsg('bot', '<div class="errbox">' + detail + '</div>');
+    body.appendChild(makeAbar([makeBtn('\u21BA Retry', 'btn btn-ghost', pushToDcTrack)]));
+  });
+}
+
+/* ─── Result ─── */
+function showResult(data) {
+  /* Left chat: brief success */
+  var body = addMsg('bot', '<p>\uD83C\uDF89 <strong>Cabinet created in dcTrack!</strong></p>'
+    + '<p style="color:var(--text2);font-size:.78rem;margin-top:4px">Full results on the right &rarr;</p>', true);
+  body.appendChild(makeAbar([makeBtn('\uD83D\uDD04 Discover Another Rack', 'btn btn-primary', resetFlow)]));
+
+  /* Right panel: result card + item list */
+  var sec = rightSection('Push Results');
+  setRightBadge(data.items_created + ' items created', 'var(--green)');
+
+  var card = document.createElement('div');
+  card.className = 'rcard';
+  var h4 = document.createElement('h4'); h4.innerHTML = '\u2705 Push Complete'; card.appendChild(h4);
+
+  [['Cabinet Name', data.cabinet_name], ['Location', data.location_name],
+   ['Items Created', data.items_created], ['Request ID', data.request_id]
+  ].forEach(function(pair) {
+    if (pair[1] == null) return;
+    var row = document.createElement('div'); row.className = 'rstat';
+    var lbl = document.createElement('span'); lbl.textContent = pair[0];
+    var val = document.createElement('span'); val.className = 'rval'; val.textContent = pair[1];
+    row.appendChild(lbl); row.appendChild(val); card.appendChild(row);
+  });
+
+  if (data.items_errored > 0) {
+    var errRow = document.createElement('div'); errRow.className = 'rstat';
+    var errLbl = document.createElement('span'); errLbl.textContent = 'Items Errored';
+    var errVal = document.createElement('span'); errVal.className = 'rval'; errVal.style.color = 'var(--red)';
+    errVal.textContent = data.items_errored;
+    errRow.appendChild(errLbl); errRow.appendChild(errVal); card.appendChild(errRow);
+  }
+  sec.appendChild(card);
+
+  if (data.item_results && data.item_results.length > 0) {
+    var listSec = rightSection('Item Details');
+    var scroll = document.createElement('div');
+    scroll.style.cssText = 'max-height:340px;overflow-y:auto;border:1px solid var(--border2);border-radius:9px;padding:4px 12px;background:var(--surface)';
+
+    data.item_results.forEach(function(item) {
+      var row = document.createElement('div'); row.className = 'item-row';
+      var top = document.createElement('div'); top.className = 'item-row-top';
+      var lbl = document.createElement('span');
+      lbl.innerHTML = (item.status === 'created' ? '\uD83D\uDCE6 ' : '\u26A0 ') + esc(item.name || ('Item ' + item.index));
+      var val = document.createElement('span');
+      val.style.cssText = 'font-family:var(--mono);font-size:.68rem;color:' + (item.status === 'created' ? 'var(--green)' : 'var(--red)');
+      val.textContent = item.status === 'created' ? '\u2713 created' : 'error';
+      top.appendChild(lbl); top.appendChild(val); row.appendChild(top);
+      if (item.status !== 'created' && item.detail) {
+        var det = document.createElement('div'); det.className = 'item-err-detail';
+        det.textContent = typeof item.detail === 'object' ? JSON.stringify(item.detail) : String(item.detail);
+        row.appendChild(det);
+      }
+      scroll.appendChild(row);
+    });
+    listSec.appendChild(scroll);
+  }
+}
+
+/* ─── Text input ─── */
+document.getElementById('userinput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendText(); }
+});
+document.getElementById('sendbtn').addEventListener('click', sendText);
+
+function sendText() {
+  var inp = document.getElementById('userinput');
+  var msg = inp.value.trim(); if (!msg) return;
+  inp.value = ''; addMsg('user', esc(msg));
+  var lower = msg.toLowerCase();
+
+  /* ── Wizard shortcuts (image loaded) ── */
+  if (lower.indexOf('start over') !== -1 || lower.indexOf('reset') !== -1 || lower.indexOf('new rack') !== -1) { resetFlow(); return; }
+  if ((lower.indexOf('analyze') !== -1 || lower.indexOf('scan') !== -1) && APP.b64 && APP.step === 1) { analyzeImage(); return; }
+  if ((lower.indexOf('location') !== -1 || lower.indexOf('push') !== -1) && APP.step === 2) { showLocationStep(); return; }
+
+  /* ── If mid-wizard (image uploaded, not yet pushed), show hint ── */
+  if (APP.b64 && APP.step >= 1 && APP.step <= 3) {
+    var hints = [
+      'Upload a rack photo to get started.',
+      'Review the table on the right, then click <em>Set Location &amp; Push</em>.',
+      'Fill in the location and cabinet name, then click <em>Create Cabinet in dcTrack</em>.',
+      'The workflow is complete! Click <em>Discover Another Rack</em> to start again.'
+    ];
+    addMsg('bot', '<p style="color:var(--text2);font-size:.84rem">' + (hints[APP.step - 1] || hints[0]) + '</p>');
+    return;
+  }
+
+  /* ── Otherwise: route to dcTrack AI Assistant ── */
+  queryDcTrack(msg);
+}
+
+/* ─── dcTrack NLP query ─── */
+var chatHistory = [];
+
+function queryDcTrack(msg) {
+  chatHistory.push({ role:'user', content: msg });
+  var tid = addThinking();
+
+  fetch(DCTRACK_CHAT, {
+    method: 'POST',
+    mode: 'cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-3-haiku-20240307',
+      max_tokens: 2048,
+      messages: chatHistory
+    })
+  })
+  .then(function(r) {
+    var status = r.status;
+    return r.text().then(function(txt) {
+      if (!txt || txt.trim().length === 0) throw new Error('No response from dcTrack assistant (status ' + status + ')');
+      var data;
+      try { data = JSON.parse(txt); } catch(e) { throw new Error('Invalid response: ' + txt.slice(0,120)); }
+      if (status >= 400) throw new Error((data && (data.error || data.message)) || 'Server error ' + status);
+      return data;
+    });
+  })
+  .then(function(data) {
+    removeThinking(tid);
+    var content = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+    if (!content) throw new Error('Empty response from dcTrack assistant');
+    chatHistory.push({ role:'assistant', content: content });
+
+    /* Render in left chat — format monospace blocks */
+    var rendered = formatDcTrackResponse(content);
+    var body = addMsg('bot', rendered, false);
+
+    /* If result looks like a cabinet/item list → also render structured card on right */
+    renderRightFromResponse(content, msg);
+  })
+  .catch(function(err) {
+    removeThinking(tid);
+    addMsg('bot', '<div class="errbox">❌ dcTrack query failed: ' + esc(err.message) + '</div>');
+  });
+}
+
+function formatDcTrackResponse(content) {
+  /* Convert the formatted text output to HTML */
+  var lines = content.split('\n');
+  var html = '';
+  lines.forEach(function(line) {
+    if (line.match(/^[A-Z ]+\(\d+\)$/) || line.match(/^={3,}/)) {
+      /* Section header */
+      html += '<div style="font-family:var(--mono);font-size:.72rem;color:var(--accent);letter-spacing:.06em;margin-top:10px;margin-bottom:4px;">' + esc(line) + '</div>';
+    } else if (line.match(/^\[.+\]$/)) {
+      /* Location group */
+      html += '<div style="font-family:var(--mono);font-size:.68rem;color:var(--text2);margin-top:8px;margin-bottom:2px;">' + esc(line) + '</div>';
+    } else if (line.match(/^  .+\|/)) {
+      /* Data row */
+      var parts = line.trim().split('|');
+      html += '<div style="font-family:var(--mono);font-size:.68rem;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);display:flex;gap:10px;">';
+      parts.forEach(function(p, i) {
+        var color = i === 0 ? 'var(--text)' : i === 1 ? 'var(--amber)' : 'var(--text3)';
+        html += '<span style="color:' + color + '">' + esc(p.trim()) + '</span>';
+      });
+      html += '</div>';
+    } else if (line.match(/^\[OK\]/)) {
+      html += '<div style="font-family:var(--mono);font-size:.72rem;color:var(--green);margin-top:6px;">' + esc(line) + '</div>';
+    } else if (line.match(/^\[ERROR\]/)) {
+      html += '<div style="font-family:var(--mono);font-size:.72rem;color:var(--red);margin-top:6px;">' + esc(line) + '</div>';
+    } else if (line.trim()) {
+      html += '<div style="font-size:.82rem;margin-top:4px;">' + esc(line) + '</div>';
+    }
+  });
+  return html || '<p style="color:var(--text2)">' + esc(content) + '</p>';
+}
+
+function renderRightFromResponse(content, query) {
+  /* If response has structured list data, show a summary on the right panel */
+  var lower = query.toLowerCase();
+  var isList = content.indexOf('|') !== -1 && (content.indexOf('ID:') !== -1 || content.indexOf('U') !== -1);
+  if (!isList) return;
+
+  var sec = rightSection('dcTrack Query Result');
+  setRightBadge('Query result', 'var(--accent)');
+
+  var pre = document.createElement('div');
+  pre.style.cssText = 'font-family:var(--mono);font-size:.68rem;line-height:1.7;color:var(--text);'
+    + 'background:var(--surface);border:1px solid var(--border2);border-radius:9px;padding:14px;'
+    + 'overflow-x:auto;white-space:pre;max-height:420px;overflow-y:auto;';
+  pre.textContent = content;
+  sec.appendChild(pre);
+}
+
+/* ─── Reset ─── */
+function resetFlow() {
+  chatHistory = [];
+  var locs = APP.locations;
+  APP = { step:1, b64:null, mime:null, inventory:[], locations:locs, cabinet:'', location:'', session:'sess_'+Date.now() };
+  msgsEl.innerHTML = '';
+  clearRight();
+  rightContent.innerHTML = '<div class="right-empty" id="right-empty"><div class="right-empty-icon">🖥️</div><div class="right-empty-title">Nothing here yet</div><div class="right-empty-sub">Upload a rack photo on the left<br/>Your image, inventory table<br/>and push results will appear here</div></div>';
+  setRightBadge('Awaiting upload', '');
+  setStep(1);
+  showWelcome();
+}
+
+/* ─── Toast ─── */
+function showToast(msg) {
+  var t = document.createElement('div');
+  t.style.cssText = 'position:fixed;top:80px;right:22px;background:var(--surface2);border:1px solid var(--amber);color:var(--amber);padding:9px 15px;border-radius:8px;font-family:var(--mono);font-size:.75rem;z-index:9999;animation:slideup .3s ease;pointer-events:none';
+  t.innerHTML = msg; document.body.appendChild(t);
+  setTimeout(function() { if (t.parentNode) t.parentNode.removeChild(t); }, 3000);
+}
+
+/* ─── Init ─── */
+showWelcome();
+</script>
+</body>
+</html>

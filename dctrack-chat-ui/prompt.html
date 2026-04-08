@@ -260,6 +260,16 @@
         .class-tag.modify { background: #362A1A; color: #F6AD55; }
         .class-tag.delete { background: #3B1A1A; color: #FC8181; }
         .class-tag.verify { background: #1A362A; color: #48BB78; }
+        .class-tag.data-port { background: #2D3748; color: #68D391; }
+        .class-tag.power-port { background: #2D3748; color: #F687B3; }
+        .class-tag.connection { background: #2D3748; color: #76E4F7; }
+        .class-tag.power-chain { background: #2D3748; color: #FBD38D; }
+        .class-tag.readings { background: #2D3748; color: #FEB2B2; }
+        .class-tag.summary { background: #1A365D; color: #90CDF4; }
+        .class-tag.capacity { background: #2D3748; color: #C6F6D5; }
+        .class-tag.free-standing { background: #2D3748; color: #D6BCFA; }
+        .class-tag.floor-pdu { background: #2D3748; color: #F687B3; }
+        .class-tag.power-outlet { background: #2D3748; color: #FEB2B2; }
 
         .prompt-text {
             font-family: 'JetBrains Mono', monospace;
@@ -351,6 +361,90 @@
             .prompt-num { width: 44px; min-width: 44px; font-size: 10px; }
             .phase-body { margin-left: 22px; }
         }
+
+        /* ── Coverage Matrix ── */
+        .coverage-matrix {
+            margin-top: 32px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+        .coverage-matrix h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--sunbird-orange);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .coverage-matrix h2 .badge {
+            background: var(--sunbird-orange);
+            color: #000;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 6px;
+        }
+        .coverage-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .coverage-table th {
+            background: var(--bg-tertiary);
+            color: var(--sunbird-orange-light);
+            font-weight: 600;
+            text-align: left;
+            padding: 10px 14px;
+            border-bottom: 2px solid var(--border-highlight);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .coverage-table td {
+            padding: 8px 14px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+            vertical-align: middle;
+        }
+        .coverage-table tr:last-child td { border-bottom: none; }
+        .coverage-table tr:hover td { background: var(--bg-hover); }
+        .coverage-table td:first-child {
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+        .coverage-table .check {
+            color: var(--success);
+            font-weight: 600;
+        }
+        .coverage-table .steps {
+            color: var(--text-muted);
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            margin-left: 4px;
+        }
+        .coverage-table .none {
+            color: var(--text-muted);
+            opacity: 0.5;
+        }
+        .coverage-table .class-type {
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 4px;
+            margin-left: 6px;
+            font-weight: 500;
+        }
+        .class-type.rackable { background: rgba(99,179,237,0.15); color: var(--blue); }
+        .class-type.freestanding { background: rgba(183,148,244,0.15); color: var(--purple); }
+
+        @media (max-width: 768px) {
+            .coverage-table { font-size: 11px; }
+            .coverage-table th, .coverage-table td { padding: 6px 8px; }
+            .coverage-table .steps { display: none; }
+        }
     </style>
 </head>
 <body>
@@ -399,7 +493,8 @@ const PHASES = [
       { num: '2.3', label: 'Bulk Create CAB-01 Items', prompt: 'Create the following items in cabinet AI-CAB-01, all status Planned:\n\n- "AI-PDU-A1" make APC model AP8861 class Rack PDU mounting ZeroU\n- "AI-PDU-A2" make APC model AP8865 class Rack PDU mounting ZeroU\n- "AI-PROBE-01" make Geist model RSE-B class Probe at U42\n- "AI-PATCH-01" make Panduit model "1RU-CP Panel RJ45 24-port CAT6" class Data Panel at U41\n- "AI-WM-01" make APC model "1RU-Wire Manager AR8602" class Passive at U40\n- "AI-SRV-01" make Dell model "PowerEdge R740" class Device at U1\n- "AI-SRV-02" make Dell model "PowerEdge R740" class Device at U3\n- "AI-SRV-03" make Dell model "PowerEdge R640" class Device at U5\n- "AI-SRV-04" make Dell model "PowerEdge R650" class Device at U6\n- "AI-BLANK-01" make APC model "1RU-Blanking Plate-APC" class Passive at U7', expected: '10 items created in CAB-01. 8U used + 2 ZeroU PDUs.', tags: ['device','rack-pdu','probe','data-panel','passive'] },
       { num: '2.4', label: 'Bulk Create CAB-02 Items', prompt: 'Create the following items in cabinet AI-CAB-02, all status Planned:\n\n- "AI-PDU-B1" make APC model AP8841 class Rack PDU mounting ZeroU\n- "AI-PDU-B2" make APC model AP8841 class Rack PDU mounting ZeroU\n- "AI-TOR-01" make Cisco model "Nexus N9K-C9372PX" class Network at U42\n- "AI-TOR-02" make Cisco model "Nexus N9K-C93180YC-EX" class Network at U41\n- "AI-PATCH-02" make Panduit model "1RU-DP6 Panel RJ45 24-port CAT6" class Data Panel at U40\n- "AI-WM-02" make APC model "1RU-Wire Manager AR8602" class Passive at U39\n- "AI-PATCH-03" make Panduit model "1RU-CP Panel RJ45 24-port CAT6A" class Data Panel at U38\n- "AI-SRV-05" make Dell model "PowerEdge R730" class Device at U1\n- "AI-SRV-06" make Dell model "PowerEdge R720" class Device at U3\n- "AI-BLANK-02" make APC model "2RU-Blanking Plate-APC" class Passive at U5', expected: '10 items created in CAB-02. 11U used + 2 ZeroU PDUs.', tags: ['device','network','rack-pdu','data-panel','passive'] },
       { num: '2.5', label: 'Bulk Create CAB-03 Items', prompt: 'Create the following items in cabinet AI-CAB-03, all status Planned:\n\n- "AI-PDU-C1" make APC model AP8853 class Rack PDU mounting ZeroU\n- "AI-SRV-07" make Dell model "PowerEdge R740xd" class Device at U1\n- "AI-SRV-08" make Dell model "PowerEdge R730xd" class Device at U3\n- "AI-TOR-03" make Cisco model "Nexus N9K-C9372TX" class Network at U42\n- "AI-PROBE-02" make APC model AP9340 class Probe at U41\n- "AI-PATCH-04" make Panduit model "1RU-CPP Panel RJ45 24-port CAT6" class Data Panel at U40\n- "AI-WM-03" make APC model "2RU-Wire Manager AR8600" class Passive at U38\n- "AI-BLANK-03" make APC model "4RU-Blanking Plate-APC" class Passive at U5', expected: '8 items created in CAB-03. 12U used + 1 ZeroU PDU.', tags: ['device','network','rack-pdu','probe','data-panel','passive'] },
-      { num: '2.6', label: 'Create Ticket', prompt: 'Create a new ticket with description "AI-ROOM-01 Commissioning: Install and cable 3 cabinets of compute, network, and infrastructure equipment"', expected: 'Ticket created.', tags: ['ticket'] },
+      { num: '2.6', label: 'Create Room Infrastructure', prompt: 'Create the following free-standing items in location AI-ROOM-01, all status Planned:\n\n- "AI-UPS-01" make APC model "MGE Galaxy 3000 G3KUPS10" class UPS\n- "AI-FPDU-01" make APC model "PDPM72F-5U" class "Floor PDU"\n- "AI-CRAC-01" make APC model ACCS1000 class HVAC\n- "AI-PWR-OUT-01" make Hubbell model "Power Outlet Box" class "Power Outlet"', expected: '4 free-standing items created in room (no cabinet).', tags: ['ups','floor-pdu','hvac','power-outlet'] },
+      { num: '2.7', label: 'Create Ticket', prompt: 'Create a new ticket with description "AI-ROOM-01 Commissioning: Install and cable 3 cabinets of compute, network, and infrastructure equipment plus room power and cooling"', expected: 'Ticket created.', tags: ['ticket'] },
     ]
   },
   {
@@ -420,6 +515,10 @@ const PHASES = [
       { num: '3.13', label: 'Search Rack PDUs', prompt: 'Search for all Rack PDU items in dcTrack', expected: 'AI-PDU-A1, A2, B1, B2, C1 appear.', tags: ['query','rack-pdu'] },
       { num: '3.14', label: 'Search Data Panels', prompt: 'Search for all Data Panel items in dcTrack', expected: 'AI-PATCH-01 through 04 appear.', tags: ['query','data-panel'] },
       { num: '3.15', label: 'Search Probes', prompt: 'Search for all Probe items in dcTrack', expected: 'AI-PROBE-01, 02 appear.', tags: ['query','probe'] },
+      { num: '3.16', label: 'Search UPS', prompt: 'Search for all UPS items in dcTrack', expected: 'AI-UPS-01 appears.', tags: ['query','ups'] },
+      { num: '3.17', label: 'Search Floor PDUs', prompt: 'Search for all Floor PDU items in dcTrack', expected: 'AI-FPDU-01 appears.', tags: ['query','floor-pdu'] },
+      { num: '3.18', label: 'Search HVAC', prompt: 'Search for all HVAC items in dcTrack', expected: 'AI-CRAC-01 appears.', tags: ['query','hvac'] },
+      { num: '3.19', label: 'Search Power Outlets', prompt: 'Search for all Power Outlet items in dcTrack', expected: 'AI-PWR-OUT-01 appears.', tags: ['query','power-outlet'] },
     ]
   },
   {
@@ -442,32 +541,94 @@ const PHASES = [
   {
     id: 'phase5', title: 'Modify Objects', badge: '5',
     prompts: [
-      { num: '5.1', label: 'Set SRV-01 \u2192 Installed', prompt: 'Search for item named "AI-SRV-01" using dctrack_search_items, get its itemId, then update its status to Installed using dctrack_update_item', expected: 'Status changed to Installed.', tags: ['modify'] },
-      { num: '5.2', label: 'Verify Status Change', prompt: 'Search for item named "AI-SRV-01" in dcTrack', expected: 'Status now "Installed".', tags: ['verify'] },
-      { num: '5.3', label: 'Set SRV-05 \u2192 Installed', prompt: 'Search for item named "AI-SRV-05" using dctrack_search_items, get its itemId, then update its status to Installed using dctrack_update_item', tags: ['modify'] },
-      { num: '5.4', label: 'Check Cabinet 1 Space', prompt: 'Show me the U-position map for cabinet AI-CAB-01', expected: 'Find free 2U slot.', tags: ['query'] },
-      { num: '5.5', label: 'Move SRV-08 \u2192 CAB-01 U20', prompt: 'Search for item named "AI-SRV-08" using dctrack_search_items, get its itemId, then move it to cabinet AI-CAB-01 at U-position 20', expected: 'Server relocated.', tags: ['modify'] },
-      { num: '5.6', label: 'Verify CAB-03 Lost Server', prompt: 'What items are installed in cabinet AI-CAB-03?', expected: 'AI-SRV-08 gone.', tags: ['verify'] },
-      { num: '5.7', label: 'Verify CAB-01 Gained Server', prompt: 'What items are installed in cabinet AI-CAB-01?', expected: 'AI-SRV-08 now here.', tags: ['verify'] },
-      { num: '5.8', label: 'Updated U-Map', prompt: 'Show me the U-position map for cabinet AI-CAB-01', expected: 'AI-SRV-08 at U20.', tags: ['verify'] },
-      { num: '5.9', label: 'Find Ticket', prompt: 'Search for tickets in dcTrack', expected: 'Note ticket ID.', tags: ['query'] },
-      { num: '5.10', label: 'Update Ticket Progress', prompt: 'Search for tickets using dctrack_search_tickets, find the most recent one, get its ID, then update it with status "In Progress" and comments "Cabinets 1-3 populated. SRV-01 and SRV-05 commissioned. SRV-08 relocated."', tags: ['modify','ticket'] },
+      // ── Step 1: Install all 3 cabinets first (dcTrack requires cabinets Installed before items can be Installed)
+      // NOTE: Cabinet "Installed" status requires cmbRowLabel and cmbRowPosition fields
+      { num: '5.1', label: 'Install CAB-01', prompt: 'Update item "AI-CAB-01" using dctrack_update_item with updates: cmbStatus "Installed", cmbRowLabel "Row-A", cmbRowPosition 1', expected: 'Cabinet status → Installed.', tags: ['modify','cabinet'] },
+      { num: '5.2', label: 'Install CAB-02', prompt: 'Update item "AI-CAB-02" using dctrack_update_item with updates: cmbStatus "Installed", cmbRowLabel "Row-A", cmbRowPosition 2', expected: 'Cabinet status → Installed.', tags: ['modify','cabinet'] },
+      { num: '5.3', label: 'Install CAB-03', prompt: 'Update item "AI-CAB-03" using dctrack_update_item with updates: cmbStatus "Installed", cmbRowLabel "Row-A", cmbRowPosition 3', expected: 'Cabinet status → Installed.', tags: ['modify','cabinet'] },
+      { num: '5.4', label: 'Verify All Cabinets Installed', prompt: 'List all cabinets in AI-ROOM-01', expected: 'All 3 cabinets show status "Installed".', tags: ['verify','cabinet'] },
+
+      // ── Step 2: Install items (cabinets must be Installed first — done above)
+      { num: '5.5', label: 'Install SRV-01 (CAB-01)', prompt: 'Update item "AI-SRV-01" using dctrack_update_item with updates: cmbStatus "Installed"', expected: 'Server status → Installed.', tags: ['modify'] },
+      { num: '5.6', label: 'Install SRV-05 (CAB-02)', prompt: 'Update item "AI-SRV-05" using dctrack_update_item with updates: cmbStatus "Installed"', expected: 'Server status → Installed.', tags: ['modify'] },
+      { num: '5.7', label: 'Install TOR-03 (CAB-03)', prompt: 'Update item "AI-TOR-03" using dctrack_update_item with updates: cmbStatus "Installed"', expected: 'Switch status → Installed.', tags: ['modify'] },
+      { num: '5.8', label: 'Install UPS-01', prompt: 'Update item "AI-UPS-01" using dctrack_update_item with updates: cmbStatus "Installed"', expected: 'UPS status → Installed.', tags: ['modify','ups'] },
+      { num: '5.9', label: 'Install CRAC-01', prompt: 'Update item "AI-CRAC-01" using dctrack_update_item with updates: cmbStatus "Installed"', expected: 'HVAC status → Installed.', tags: ['modify','hvac'] },
+      { num: '5.10', label: 'Verify Installed Items', prompt: 'Search for all items with status Installed in dcTrack', expected: 'Cabinets, servers, switch, UPS, CRAC all Installed.', tags: ['verify'] },
+
+      // ── Step 3: Move item between cabinets
+      { num: '5.11', label: 'Check CAB-01 U-Map Before Move', prompt: 'Show me the U-position map for cabinet AI-CAB-01', expected: 'U20 is available.', tags: ['query'] },
+      { num: '5.12', label: 'Move SRV-08 → CAB-01 U20', prompt: 'Move item "AI-SRV-08" to cabinet AI-CAB-01 at U-position 20 using dctrack_move_item', expected: 'Server relocated from CAB-03 to CAB-01.', tags: ['modify'] },
+      { num: '5.13', label: 'Verify CAB-03 Lost Server', prompt: 'What items are installed in cabinet AI-CAB-03?', expected: 'AI-SRV-08 no longer here.', tags: ['verify'] },
+      { num: '5.14', label: 'Verify CAB-01 Gained Server', prompt: 'What items are installed in cabinet AI-CAB-01?', expected: 'AI-SRV-08 now at U20.', tags: ['verify'] },
+      { num: '5.15', label: 'CAB-01 U-Map After Move', prompt: 'Show me the U-position map for cabinet AI-CAB-01', expected: 'AI-SRV-08 visible at U20.', tags: ['verify'] },
+
+      // ── Step 4: Review overall state after modifications
+      { num: '5.16', label: 'Capacity After Changes', prompt: 'Find cabinets in AI-ROOM-01 with their capacity and utilization', expected: 'CAB-01 higher utilization (gained SRV-08), CAB-03 lower.', tags: ['query'] },
+      { num: '5.17', label: 'All Items Across Cabinets', prompt: 'What items are installed in cabinets AI-CAB-01, AI-CAB-02, and AI-CAB-03?', expected: '25 total items, SRV-08 in CAB-01 not CAB-03.', tags: ['verify'] },
+      { num: '5.18', label: 'All Items in Location', prompt: 'Search for all items in location AI-ROOM-01', expected: '32+ items: 25 racked + 3 cabinets + 4 free-standing.', tags: ['verify'] },
+
+      // ── Step 5: Update ticket with progress
+      { num: '5.19', label: 'Find Ticket', prompt: 'Search for tickets in dcTrack', expected: 'Commissioning ticket visible.', tags: ['query','ticket'] },
+      { num: '5.20', label: 'Update Ticket Progress', prompt: 'Search for tickets using dctrack_search_tickets, find the most recent one, get its ID, then update it with status "In Progress" and comments "Cabinets 1-3 installed in Row-A. SRV-01, SRV-05, TOR-03 commissioned. UPS and CRAC installed. SRV-08 relocated from CAB-03 to CAB-01 at U20."', tags: ['modify','ticket'] },
     ]
   },
   {
-    id: 'phase6', title: 'Delete & Cleanup \u2014 Restore Empty State', badge: '6',
+    id: 'phase6', title: 'Networking, Power & Connectivity', badge: '6',
     prompts: [
-      { num: '6.1', label: 'List All AI-ROOM-01 Items', prompt: 'What items are installed in cabinets AI-CAB-01, AI-CAB-02, and AI-CAB-03?', expected: 'Shows all items across 3 cabinets.', tags: ['query'] },
-      { num: '6.2', label: 'Bulk Delete CAB-01 Items', prompt: 'Delete the following items from dcTrack. For each one, search by name to get the itemId, then delete it:\n\n- AI-PDU-A1\n- AI-PDU-A2\n- AI-PROBE-01\n- AI-PATCH-01\n- AI-WM-01\n- AI-SRV-01\n- AI-SRV-02\n- AI-SRV-03\n- AI-SRV-04\n- AI-BLANK-01\n- AI-SRV-08', expected: 'All CAB-01 items deleted (including moved SRV-08).', tags: ['delete'] },
-      { num: '6.3', label: 'Verify CAB-01 Empty', prompt: 'What items are installed in cabinet AI-CAB-01?', expected: 'No items.', tags: ['verify'] },
-      { num: '6.4', label: 'Bulk Delete CAB-02 Items', prompt: 'Delete the following items from dcTrack. For each one, search by name to get the itemId, then delete it:\n\n- AI-PDU-B1\n- AI-PDU-B2\n- AI-TOR-01\n- AI-TOR-02\n- AI-PATCH-02\n- AI-WM-02\n- AI-PATCH-03\n- AI-SRV-05\n- AI-SRV-06\n- AI-BLANK-02', expected: 'All CAB-02 items deleted.', tags: ['delete'] },
-      { num: '6.5', label: 'Verify CAB-02 Empty', prompt: 'What items are installed in cabinet AI-CAB-02?', expected: 'No items.', tags: ['verify'] },
-      { num: '6.6', label: 'Bulk Delete CAB-03 Items', prompt: 'Delete the following items from dcTrack. For each one, search by name to get the itemId, then delete it:\n\n- AI-PDU-C1\n- AI-SRV-07\n- AI-TOR-03\n- AI-PROBE-02\n- AI-PATCH-04\n- AI-WM-03\n- AI-BLANK-03', expected: 'All CAB-03 items deleted.', tags: ['delete'] },
-      { num: '6.7', label: 'Verify CAB-03 Empty', prompt: 'What items are installed in cabinet AI-CAB-03?', expected: 'No items.', tags: ['verify'] },
-      { num: '6.8', label: 'Bulk Delete Cabinets', prompt: 'Delete the following cabinets from dcTrack. For each one, search by name to get the itemId, then delete it:\n\n- AI-CAB-01\n- AI-CAB-02\n- AI-CAB-03', expected: 'All 3 cabinets deleted.', tags: ['delete','cabinet'] },
-      { num: '6.9', label: 'Delete Ticket', prompt: 'Search for tickets using dctrack_search_tickets, find the most recent one, get its ID, then delete it using dctrack_delete_ticket', tags: ['delete','ticket'] },
-      { num: '6.10', label: 'Confirm Location Empty', prompt: 'Search for all items in location AI-ROOM-01', expected: 'No items found.', tags: ['verify'] },
-      { num: '6.11', label: 'Confirm No Cabinets', prompt: 'Find cabinets in AI-ROOM-01', expected: 'No cabinets. Fully restored.', tags: ['verify'] },
+      // ── Ports ──
+      { num: '6.1', label: 'List PDU Power Ports', prompt: 'Search for item "AI-PDU-A1" in dcTrack, get its item ID, then use dctrack_list_power_ports with that itemId to list all power ports on the Rack PDU', expected: 'Power ports listed for AI-PDU-A1 (outlets from model definition).', tags: ['power-port','rack-pdu'] },
+      { num: '6.2', label: 'List Switch Data Ports', prompt: 'Search for item "AI-TOR-01" in dcTrack, get its item ID, then use dctrack_list_data_ports with that itemId to list all data ports on the switch', expected: 'Data ports listed for AI-TOR-01 (ports from Nexus model definition).', tags: ['data-port','network'] },
+      { num: '6.3', label: 'List Patch Panel Ports', prompt: 'Search for item "AI-PATCH-01" in dcTrack, get its item ID, then use dctrack_list_data_ports with that itemId to list all data ports on the patch panel', expected: 'Data ports listed for AI-PATCH-01 (24 RJ45 ports from model).', tags: ['data-port','data-panel'] },
+      { num: '6.4', label: 'Create Switch Ports (TOR-01)', prompt: 'Search for item "AI-TOR-01" in dcTrack, get its item ID, then create the following data ports on it using dctrack_create_data_port:\n\n- Port "Eth1/1" connector RJ45 mediaType "Cat6" protocol "Ethernet" dataRate "10GbE"\n- Port "Eth1/2" connector RJ45 mediaType "Cat6" protocol "Ethernet" dataRate "10GbE"\n- Port "Eth1/3" connector RJ45 mediaType "Cat6" protocol "Ethernet" dataRate "10GbE"\n- Port "Eth1/4" connector RJ45 mediaType "Cat6" protocol "Ethernet" dataRate "10GbE"', expected: '4 data ports created on AI-TOR-01.', tags: ['data-port','network','modify'] },
+      { num: '6.5', label: 'Create Patch Panel Ports (PATCH-02)', prompt: 'Search for item "AI-PATCH-02" in dcTrack, get its item ID, then create the following data ports on it using dctrack_create_data_port:\n\n- Port "P1" connector RJ45 mediaType "Cat6"\n- Port "P2" connector RJ45 mediaType "Cat6"\n- Port "P3" connector RJ45 mediaType "Cat6"\n- Port "P4" connector RJ45 mediaType "Cat6"', expected: '4 data ports created on AI-PATCH-02.', tags: ['data-port','data-panel','modify'] },
+      { num: '6.6', label: 'Verify TOR-01 Ports', prompt: 'Search for item "AI-TOR-01" in dcTrack, get its item ID, then use dctrack_list_data_ports to verify the ports Eth1/1 through Eth1/4 exist', expected: '4 custom data ports visible on AI-TOR-01.', tags: ['data-port','verify'] },
+
+      // ── Network Connections ──
+      { num: '6.7', label: 'Connect SRV-05 \u2192 TOR-01', prompt: 'Search for items "AI-SRV-05" and "AI-TOR-01" in dcTrack to get their item IDs. Then use dctrack_create_connection with sourceItemId for AI-SRV-05 and destItemId for AI-TOR-01, sourcePortName "eth0", destPortName "Eth1/1", connectionType "Network"', expected: 'Network connection created: AI-SRV-05 eth0 \u2192 AI-TOR-01 Eth1/1.', tags: ['connection','network','modify'] },
+      { num: '6.8', label: 'Connect SRV-06 \u2192 TOR-01', prompt: 'Search for items "AI-SRV-06" and "AI-TOR-01" in dcTrack to get their item IDs. Then use dctrack_create_connection with sourceItemId for AI-SRV-06 and destItemId for AI-TOR-01, sourcePortName "eth0", destPortName "Eth1/2", connectionType "Network"', expected: 'Network connection created: AI-SRV-06 eth0 \u2192 AI-TOR-01 Eth1/2.', tags: ['connection','network','modify'] },
+      { num: '6.9', label: 'Connect TOR-01 \u2192 PATCH-02', prompt: 'Search for items "AI-TOR-01" and "AI-PATCH-02" in dcTrack to get their item IDs. Then use dctrack_create_connection with sourceItemId for AI-TOR-01 and destItemId for AI-PATCH-02, sourcePortName "Eth1/3", destPortName "P1", connectionType "Network"', expected: 'Network uplink: AI-TOR-01 Eth1/3 \u2192 AI-PATCH-02 P1.', tags: ['connection','network','modify'] },
+
+      // ── Power Connections ──
+      { num: '6.10', label: 'Power Connect SRV-05 \u2192 PDU-B1', prompt: 'Search for items "AI-SRV-05" and "AI-PDU-B1" in dcTrack to get their item IDs. Then use dctrack_create_connection with sourceItemId for AI-SRV-05 and destItemId for AI-PDU-B1, connectionType "Power"', expected: 'Power connection created: AI-SRV-05 \u2192 AI-PDU-B1.', tags: ['connection','power-port','modify'] },
+      { num: '6.11', label: 'Power Connect SRV-06 \u2192 PDU-B2', prompt: 'Search for items "AI-SRV-06" and "AI-PDU-B2" in dcTrack to get their item IDs. Then use dctrack_create_connection with sourceItemId for AI-SRV-06 and destItemId for AI-PDU-B2, connectionType "Power"', expected: 'Power connection created: AI-SRV-06 \u2192 AI-PDU-B2.', tags: ['connection','power-port','modify'] },
+
+      // ── Verify Connections ──
+      { num: '6.12', label: 'Verify TOR-01 Connections', prompt: 'Search for item "AI-TOR-01" in dcTrack, get its item ID, then use dctrack_list_connections with that itemId to show all connections', expected: '3 connections visible: SRV-05\u2192Eth1/1, SRV-06\u2192Eth1/2, Eth1/3\u2192PATCH-02.', tags: ['connection','verify'] },
+      { num: '6.13', label: 'Verify PDU-B1 Connections', prompt: 'Search for item "AI-PDU-B1" in dcTrack, get its item ID, then use dctrack_list_connections with that itemId to show all connections', expected: 'Power connection from AI-SRV-05 visible.', tags: ['connection','verify'] },
+
+      // ── Views & Analytics ──
+      { num: '6.14', label: 'Rack Summary CAB-02', prompt: 'Use dcim_get_rack_summary for cabinet "AI-CAB-02" to get a comprehensive view including items, power, and connectivity', expected: 'Full rack summary: items, U positions, power data, connection counts.', tags: ['summary','query'] },
+      { num: '6.15', label: 'Power Chain SRV-05', prompt: 'Search for item "AI-SRV-05" in dcTrack, get its item ID, then use dcim_get_power_chain with that itemId to trace the complete power chain from server to source', expected: 'Power chain: AI-SRV-05 \u2192 AI-PDU-B1 \u2192 upstream power path.', tags: ['power-chain','query'] },
+      { num: '6.16', label: 'Power Readings PDU-B1', prompt: 'Search for item "AI-PDU-B1" in dcTrack, get its item ID, then use dctrack_get_actual_readings with that itemId to get current power readings', expected: 'Power readings for AI-PDU-B1 (amps, volts, watts per port).', tags: ['readings','rack-pdu'] },
+      { num: '6.17', label: 'Find Capacity (Space + Power)', prompt: 'Use dcim_find_capacity to find cabinets with at least 4U of space and 2kW of available power', expected: 'Matching cabinets listed with available space, power, and port counts.', tags: ['capacity','query'] },
+      { num: '6.18', label: 'Location Power Chain', prompt: 'Search for location "AI-ROOM-01" in dcTrack, get its location ID, then use dctrack_get_location_power_chain with that locationId to show the room-level power chain', expected: 'Full power chain for AI-ROOM-01 showing all power relationships.', tags: ['power-chain','query'] },
+      { num: '6.19', label: 'Rack Summary CAB-01', prompt: 'Use dcim_get_rack_summary for cabinet "AI-CAB-01" to compare against CAB-02', expected: 'Rack summary for CAB-01: items, utilization, no network connections.', tags: ['summary','query'] },
+      { num: '6.20', label: 'Rack Summary CAB-03', prompt: 'Use dcim_get_rack_summary for cabinet "AI-CAB-03"', expected: 'Rack summary for CAB-03: items, utilization.', tags: ['summary','query'] },
+      { num: '6.21', label: 'Update Ticket with Connectivity', prompt: 'Search for tickets using dctrack_search_tickets, find the most recent one, get its ID, then update it with comments "Network connectivity established: SRV-05 and SRV-06 connected to TOR-01, TOR-01 uplinked to PATCH-02. Power connections: SRV-05 to PDU-B1, SRV-06 to PDU-B2. Rack summaries verified for all 3 cabinets."', expected: 'Ticket updated with connectivity milestone.', tags: ['modify','ticket'] },
+    ]
+  },
+  {
+    id: 'phase7', title: 'Delete & Cleanup \u2014 Restore Empty State', badge: '7',
+    prompts: [
+      // ── Cleanup Connections & Ports First ──
+      { num: '7.1', label: 'Delete All Connections', prompt: 'Search for item "AI-TOR-01" in dcTrack, get its item ID, then use dctrack_list_connections with that itemId to get all connection IDs. Delete each connection using dctrack_delete_connection. Then do the same for items "AI-PDU-B1" and "AI-PDU-B2" \u2014 list their connections and delete each one.', expected: 'All 5 connections deleted (3 network + 2 power).', tags: ['connection','delete'] },
+      { num: '7.2', label: 'Delete Custom Data Ports', prompt: 'Search for item "AI-TOR-01" in dcTrack, get its item ID, then use dctrack_list_data_ports to find ports named Eth1/1 through Eth1/4 and delete each using dctrack_delete_data_port. Then search for "AI-PATCH-02", get its item ID, list data ports, and delete ports P1 through P4.', expected: '8 custom data ports deleted (4 from TOR-01, 4 from PATCH-02).', tags: ['data-port','delete'] },
+      { num: '7.3', label: 'Verify No Connections', prompt: 'Use dctrack_list_connections to verify no connections remain in the system', expected: 'No connections found.', tags: ['connection','verify'] },
+
+      // ── Delete Items ──
+      { num: '7.4', label: 'List All AI-ROOM-01 Items', prompt: 'What items are installed in cabinets AI-CAB-01, AI-CAB-02, and AI-CAB-03?', expected: 'Shows all items across 3 cabinets.', tags: ['query'] },
+      { num: '7.5', label: 'Bulk Delete CAB-01 Items', prompt: 'Delete the following items from dcTrack by name using dctrack_delete_item:\n\n- AI-PDU-A1\n- AI-PDU-A2\n- AI-PROBE-01\n- AI-PATCH-01\n- AI-WM-01\n- AI-SRV-01\n- AI-SRV-02\n- AI-SRV-03\n- AI-SRV-04\n- AI-BLANK-01\n- AI-SRV-08', expected: 'All CAB-01 items deleted (including moved SRV-08).', tags: ['delete'] },
+      { num: '7.6', label: 'Verify CAB-01 Empty', prompt: 'What items are installed in cabinet AI-CAB-01?', expected: 'No items.', tags: ['verify'] },
+      { num: '7.7', label: 'Bulk Delete CAB-02 Items', prompt: 'Delete the following items from dcTrack by name using dctrack_delete_item:\n\n- AI-PDU-B1\n- AI-PDU-B2\n- AI-TOR-01\n- AI-TOR-02\n- AI-PATCH-02\n- AI-WM-02\n- AI-PATCH-03\n- AI-SRV-05\n- AI-SRV-06\n- AI-BLANK-02', expected: 'All CAB-02 items deleted.', tags: ['delete'] },
+      { num: '7.8', label: 'Verify CAB-02 Empty', prompt: 'What items are installed in cabinet AI-CAB-02?', expected: 'No items.', tags: ['verify'] },
+      { num: '7.9', label: 'Bulk Delete CAB-03 Items', prompt: 'Delete the following items from dcTrack by name using dctrack_delete_item:\n\n- AI-PDU-C1\n- AI-SRV-07\n- AI-TOR-03\n- AI-PROBE-02\n- AI-PATCH-04\n- AI-WM-03\n- AI-BLANK-03', expected: 'All CAB-03 items deleted.', tags: ['delete'] },
+      { num: '7.10', label: 'Verify CAB-03 Empty', prompt: 'What items are installed in cabinet AI-CAB-03?', expected: 'No items.', tags: ['verify'] },
+      { num: '7.11', label: 'Delete Free-Standing Items', prompt: 'Delete the following items from dcTrack by name using dctrack_delete_item:\n\n- AI-UPS-01\n- AI-FPDU-01\n- AI-CRAC-01\n- AI-PWR-OUT-01', expected: 'All 4 free-standing room items deleted (UPS, Floor PDU, CRAC, Power Outlet).', tags: ['delete','free-standing'] },
+      { num: '7.12', label: 'Bulk Delete Cabinets', prompt: 'Delete the following cabinets from dcTrack by name using dctrack_delete_item:\n\n- AI-CAB-01\n- AI-CAB-02\n- AI-CAB-03', expected: 'All 3 cabinets deleted.', tags: ['delete','cabinet'] },
+      { num: '7.13', label: 'Delete Ticket', prompt: 'Search for tickets using dctrack_search_tickets, find the most recent one, get its ID, then delete it using dctrack_delete_ticket', tags: ['delete','ticket'] },
+      { num: '7.14', label: 'Confirm Location Empty', prompt: 'Search for all items in location AI-ROOM-01', expected: 'No items found.', tags: ['verify'] },
+      { num: '7.15', label: 'Confirm No Cabinets', prompt: 'Find cabinets in AI-ROOM-01', expected: 'No cabinets. Fully restored.', tags: ['verify'] },
     ]
   },
 ];
@@ -550,6 +711,68 @@ PHASES.forEach(phase => {
     div.appendChild(body);
     content.appendChild(div);
 });
+
+// ─── CRUD Coverage Matrix ───
+const coverageData = [
+    // ── Item Classes ──
+    { cls: 'Cabinet',       type: 'rackable',     create: '2.1',  verify: '3.1\u20133.5',    modify: '5.1\u20135.3',      del: '7.12' },
+    { cls: 'Device',        type: 'rackable',     create: '2.3',  verify: '3.11',        modify: '5.4\u20135.7, 5.12', del: '7.5, 7.7, 7.9' },
+    { cls: 'Network',       type: 'rackable',     create: '2.4',  verify: '3.12',        modify: '5.10',          del: '7.7, 7.9' },
+    { cls: 'Rack PDU',      type: 'rackable',     create: '2.3',  verify: '3.13',        modify: '5.4\u20135.7',      del: '7.5, 7.7, 7.9' },
+    { cls: 'Probe',         type: 'rackable',     create: '2.3',  verify: '3.14',        modify: null,            del: '7.5, 7.9' },
+    { cls: 'Data Panel',    type: 'rackable',     create: '2.3',  verify: '3.15',        modify: '5.11',          del: '7.5, 7.7, 7.9' },
+    { cls: 'Passive',       type: 'rackable',     create: '2.3',  verify: '3.15',        modify: null,            del: '7.5, 7.7, 7.9' },
+    { cls: 'UPS',           type: 'freestanding', create: '2.6',  verify: '3.16',        modify: '5.8',           del: '7.11' },
+    { cls: 'Floor PDU',     type: 'freestanding', create: '2.6',  verify: '3.17',        modify: null,            del: '7.11' },
+    { cls: 'HVAC / CRAC',   type: 'freestanding', create: '2.6',  verify: '3.18',        modify: '5.9',           del: '7.11' },
+    { cls: 'Power Outlet',  type: 'freestanding', create: '2.6',  verify: '3.19',        modify: null,            del: '7.11' },
+    // ── Networking & Connectivity ──
+    { cls: 'Data Ports',       type: 'rackable',     create: '6.4\u20136.5',  verify: '6.1\u20136.3, 6.6', modify: null,  del: '7.2' },
+    { cls: 'Power Ports',      type: 'rackable',     create: null,           verify: '6.1',              modify: null,  del: null },
+    { cls: 'Connections',      type: 'rackable',     create: '6.7\u20136.11', verify: '6.12\u20136.13',   modify: null,  del: '7.1' },
+    { cls: 'Power Chain',      type: 'freestanding', create: null,           verify: '6.15, 6.18',       modify: null,  del: null },
+    { cls: 'Rack Summary',     type: 'rackable',     create: null,           verify: '6.14, 6.19\u20136.20', modify: null, del: null },
+    { cls: 'Power Readings',   type: 'rackable',     create: null,           verify: '6.16',             modify: null,  del: null },
+    { cls: 'Capacity Search',  type: 'freestanding', create: null,           verify: '6.17',             modify: null,  del: null },
+];
+
+function coverageCell(steps) {
+    if (!steps) return '<span class="none">\u2014</span>';
+    return `<span class="check">\u2713</span><span class="steps">${steps}</span>`;
+}
+
+const matrixDiv = document.createElement('div');
+matrixDiv.className = 'coverage-matrix';
+matrixDiv.innerHTML = `
+    <h2>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        CRUD Coverage Matrix
+        <span class="badge">11 Items + 7 Networking</span>
+    </h2>
+    <table class="coverage-table">
+        <thead>
+            <tr>
+                <th>Item Class</th>
+                <th>Create</th>
+                <th>Verify / Read</th>
+                <th>Modify / Update</th>
+                <th>Delete</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${coverageData.map(r => `
+                <tr>
+                    <td>${r.cls} <span class="class-type ${r.type}">${r.type === 'rackable' ? 'Rackable' : 'Free-Standing'}</span></td>
+                    <td>${coverageCell(r.create)}</td>
+                    <td>${coverageCell(r.verify)}</td>
+                    <td>${coverageCell(r.modify)}</td>
+                    <td>${coverageCell(r.del)}</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>
+`;
+content.appendChild(matrixDiv);
 
 // Count initial sent
 sentSet.forEach(n => sentCount++);

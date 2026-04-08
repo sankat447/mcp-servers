@@ -800,17 +800,19 @@ async function sendMessage() {
 
             // For bulk operations, flatten the results array for the table
             if (rawData && Array.isArray(rawData)) {
-                rawData = rawData.map(item => {
+                rawData = rawData.flatMap(item => {
+                    // Unwrap nested arrays (multi-cabinet queries return [[items],[items],[items]])
+                    if (Array.isArray(item)) return item;
                     // Unwrap nested {success, result} or {item} wrappers
-                    if (item && item.success === true && item.result !== undefined) return item.result;
+                    if (item && item.success === true && item.result !== undefined) return Array.isArray(item.result) ? item.result : [item.result];
                     if (item && item.data && typeof item.data === 'object') {
                         const d = item.data;
-                        if (d.success === true && d.result !== undefined) return d.result;
-                        if (d.item) return d.item;
-                        return d;
+                        if (d.success === true && d.result !== undefined) return Array.isArray(d.result) ? d.result : [d.result];
+                        if (d.item) return [d.item];
+                        return [d];
                     }
-                    if (item && item.item) return item.item;
-                    return item;
+                    if (item && item.item) return [item.item];
+                    return [item];
                 });
             }
 
@@ -1066,6 +1068,8 @@ function renderTable(rows) {
         'model','make','subclass',
         // Relationships / context
         'tiParentLocationCode','cmbLocation','cmbCabinet','parentName',
+        // Cabinet item details
+        'className','mounting','cmbUPosition','tiRackUnits',
         // Status & state
         'cmbStatus','status','severity','cmbPhase',
         // Key attributes
@@ -1090,6 +1094,12 @@ function renderTable(rows) {
         'locationId','parentId','sourceItemId','destItemId',
         'createdBy','updatedBy','createdAt','updatedAt',
         'requestId','connectionId','projectId',
+        // dcTrack internal fields from getCabinetItems
+        '_isItemEditable','_isItemDeletable','_isItemViewable',
+        'subClassId','subClassName','subClassCode',
+        'classId','classCode','formFactor',
+        'tiWeight','tiEffectivePower','tiPotentialPower',
+        'radioRailsUsed',
     ]);
 
     const allKeys = new Set();
@@ -1123,6 +1133,8 @@ function renderTable(rows) {
             'cmbAddressCountry': 'Country', 'chkContainsAssets': 'Has Assets',
             'data_center_name': 'Data Center', 'locationType': 'Type',
             'locationName': 'Name', 'parentName': 'Parent',
+            'className': 'Class', 'mounting': 'Mounting', 'cmbUPosition': 'U Position',
+            'tiRackUnits': 'RU Size', 'cmbMake': 'Make', 'cmbModel': 'Model',
         };
         if (map[col]) return map[col];
         // Strip common prefixes and camelCase → Title Case

@@ -334,12 +334,15 @@ export class DcTrackClient extends BaseClient {
     tiName: string;
     tiClass: string;
     cmbLocation?: string;
+    locationName?: string;
     cabinetId?: number;
     cabinetName?: string;
     make?: string;
     model?: string;
     tiUPosition?: number;
     tiMounting?: string;
+    radioRailsUsed?: string;
+    radioDepthPosition?: string;
     modelId?: number;
     tiSerialNumber?: string;
     tiAssetTag?: string;
@@ -357,6 +360,23 @@ export class DcTrackClient extends BaseClient {
     // dcTrack's cmbCabinet field expects the cabinet name string, not an ID
     let resolvedCabinetName: string | undefined;
     let resolvedLocation: string | undefined = item.cmbLocation;
+
+    // Resolve locationName to full location path if no cmbLocation provided
+    if (!resolvedLocation && item.locationName) {
+      try {
+        const locs = await this.listLocations();
+        const query = item.locationName.toLowerCase().replace(/[-_\s]+/g, ' ').trim();
+        const match = locs.find((l: any) => {
+          const name = (l.tiLocationName || '').toLowerCase().replace(/[-_\s]+/g, ' ').trim();
+          return name === query;
+        }) || locs.find((l: any) => {
+          const code = (l.tiLocationCode || '').toLowerCase();
+          const lastSeg = code.split('>').pop()?.replace(/[-_\s]+/g, ' ').trim() || '';
+          return lastSeg === query;
+        });
+        if (match) resolvedLocation = (match as any).tiLocationCode || (match as any).tiLocationName;
+      } catch {}
+    }
 
     if (item.cabinetName) {
       resolvedCabinetName = item.cabinetName;
@@ -388,6 +408,8 @@ export class DcTrackClient extends BaseClient {
       payload.tiUPosition = item.tiUPosition;
     }
     if (item.tiMounting) payload.tiMounting = item.tiMounting;
+    if (item.radioRailsUsed) payload.radioRailsUsed = item.radioRailsUsed;
+    if (item.radioDepthPosition) payload.radioDepthPosition = item.radioDepthPosition;
     if (item.tiSerialNumber) payload.tiSerialNumber = item.tiSerialNumber;
     if (item.tiAssetTag) payload.tiAssetTag = item.tiAssetTag;
     if (item.cmbStatus) payload.cmbStatus = item.cmbStatus;
@@ -421,18 +443,32 @@ export class DcTrackClient extends BaseClient {
 
   async moveItem(
     itemId: number,
-    targetCabinetId: number,
+    targetCabinet: number | string,
     targetUPosition: number,
     targetMounting?: string,
   ): Promise<DcTrackItem> {
+    // cmbCabinet expects the cabinet NAME (string), not a numeric ID.
+    // If a numeric ID was passed, resolve it to a name first.
+    let cabinetName: string;
+    if (typeof targetCabinet === 'string') {
+      cabinetName = targetCabinet;
+    } else {
+      const cab = await this.getCabinet(targetCabinet);
+      cabinetName = (cab as any)?.tiName || String(targetCabinet);
+    }
+
     const payload: Record<string, any> = {
-      cmbCabinet: targetCabinetId,
+      cmbCabinet: cabinetName,
+      cmbUPosition: targetUPosition,
       tiUPosition: targetUPosition,
     };
-    if (targetMounting) payload.tiMounting = targetMounting;
+    if (targetMounting) payload.radioFrontFaces = targetMounting;
 
-    const res = await this.put<any>(`/dcimoperations/items/${itemId}`, payload);
-    logger.info({ itemId, targetCabinetId, targetUPosition }, 'Item moved');
+    const res = await this.put<any>(
+      `/dcimoperations/items/${itemId}?proceedOnWarning=true`,
+      payload,
+    );
+    logger.info({ itemId, targetCabinet: cabinetName, targetUPosition }, 'Item moved');
     return res.item ?? res;
   }
 
@@ -440,7 +476,7 @@ export class DcTrackClient extends BaseClient {
     itemId: number,
     force = false,
   ): Promise<{ success: boolean; message: string }> {
-    await this.del<any>(`/dcimoperations/items/${itemId}${force ? '?force=true' : ''}`);
+    await this.del<any>(`/dcimoperations/items/${itemId}?proceedOnWarning=true`);
     logger.info({ itemId }, 'Item deleted');
     return { success: true, message: `Item ${itemId} deleted` };
   }
@@ -527,25 +563,39 @@ export class DcTrackClient extends BaseClient {
     };
 
     const payload: Record<string, any> = {
-      requestType: requestTypeMap[request.requestType] ?? request.requestType,
+      requestType: requestTypeMap[request.requestType] ?? request.requestType ?? 'Other',
       comments: request.summary + (request.description ? ` - ${request.description}` : ''),
     };
     const itemIds = request.itemIds;
     if (itemIds && itemIds.length > 0) {
       const firstItemId = itemIds[0]!;
       payload.itemId = firstItemId;
-      // Try to resolve item name
       try {
         const item = await this.getItem(firstItemId);
         payload.itemName = (item as any)?.tiName;
       } catch {
         // ok
       }
+    } else {
+      // No specific item — use a placeholder item ID if dcTrack requires one
+      // dcTrack requires itemId for change requests, so find the first available item
+      try {
+        const items = await this.searchItems({ query: 'AI-CAB', pageSize: 1 });
+        const first = items[0] as any;
+        if (first?.id) {
+          payload.itemId = Number(first.id);
+          payload.itemName = first.tiName;
+          logger.info({ itemId: first.id, itemName: first.tiName }, 'Using first available item for change request');
+        }
+      } catch {
+        // proceed without itemId — API may reject it
+      }
     }
     if (request.scheduledDate) payload.dueDate = request.scheduledDate;
-    if (request.priority) payload.priority = request.priority.toLowerCase();
+    if (request.priority) payload.priority = request.priority;
     if (request.assignee) payload.requestedBy = request.assignee;
 
+    logger.info({ payload }, 'createChangeRequest payload');
     const res = await this.post<any>('/dcimoperations/requests', payload);
     logger.info({ summary: request.summary }, 'Change request created');
     return res.request ?? res;
@@ -855,8 +905,21 @@ export class DcTrackClient extends BaseClient {
   // =======================================================================
 
   async listDataPorts(itemId: number): Promise<DcTrackDataPort[]> {
+    // Try v2 first, then v1 (v2 sometimes returns empty for API-created ports)
     const res = await this.get<any>(`/dcimoperations/items/${itemId}/dataports`);
-    return res.dataPorts ?? res.data ?? [];
+    const v2Ports = res.dataPorts ?? res.data ?? [];
+    if (v2Ports.length > 0) return v2Ports;
+
+    // Fallback to v1 API
+    try {
+      const baseUrl = this.http.defaults.baseURL || '';
+      const v1Base = baseUrl.replace('/api/v2', '/api/v1');
+      const url = `${v1Base}/items/${itemId}/dataports`;
+      const { data: v1Res } = await this.http.get<any>(url);
+      return v1Res.dataports ?? v1Res.dataPorts ?? v1Res.data ?? [];
+    } catch {
+      return v2Ports;
+    }
   }
 
   async getDataPort(itemId: number, portId: number): Promise<DcTrackDataPort | null> {
@@ -887,9 +950,14 @@ export class DcTrackClient extends BaseClient {
   // =======================================================================
 
   async listPowerPorts(itemId: number): Promise<DcTrackPowerPort[]> {
-    // Power ports use the v1 API path - need to construct full URL
-    const res = await this.get<any>(`/../v1/items/${itemId}/powerports`);
-    return res.powerPorts ?? res.data ?? [];
+    // Power ports use the v1 API — build absolute URL to bypass the v2 baseURL
+    const baseUrl = this.http.defaults.baseURL || '';
+    const v1Base = baseUrl.replace('/api/v2', '/api/v1');
+    const url = `${v1Base}/items/${itemId}/powerports`;
+    logger.info({ itemId, url }, 'Listing power ports (v1 API)');
+    const { data: res } = await this.http.get<any>(url);
+    logger.info({ itemId, responseKeys: Object.keys(res || {}), resultLength: JSON.stringify(res || '').length }, 'Power ports response');
+    return res.powerports ?? res.powerPorts ?? res.data ?? res ?? [];
   }
 
   // =======================================================================
@@ -988,8 +1056,12 @@ export class DcTrackClient extends BaseClient {
       locationId = params.locationIds[0];
     }
 
-    // Fetch cabinets filtered by location if available
-    const cabinets = await this.listCabinets({ locationId, pageSize: 200 });
+    // Fetch cabinets filtered by location — prefer name-based filter (locationId doesn't work with cmbLocation path strings)
+    const cabinets = await this.listCabinets({
+      location: params.locationName || undefined,
+      locationId: params.locationName ? undefined : locationId,
+      pageSize: 200,
+    });
     const results: any[] = [];
     for (const cab of cabinets) {
       const cap = await this.getCabinetCapacity(Number(cab.id));
@@ -1090,13 +1162,35 @@ export class DcTrackClient extends BaseClient {
   }
 
   async createTicket(ticket: Record<string, any>): Promise<DcTrackTicket> {
-    const res = await this.post<any>('/tickets', ticket);
-    logger.info({ ticket: ticket.ticketDesc }, 'Ticket created');
+    const desc = ticket.description || ticket.ticketDesc || ticket.summary || '';
+    const summary = ticket.summary || desc;
+
+    // Route through createChangeRequest which already works with /dcimoperations/requests
+    try {
+      return await this.createChangeRequest({
+        requestType: 'Install',
+        summary: summary,
+        description: desc,
+        priority: ticket.priority,
+        assignee: ticket.assignedTo || ticket.requester,
+      });
+    } catch (err: any) {
+      logger.warn({ error: err.message }, 'createChangeRequest failed, falling back to /tickets');
+    }
+
+    // Fallback: /tickets endpoint (works without items but no description)
+    const fallbackPayload: Record<string, any> = {};
+    if (desc) fallbackPayload.ticketDesc = desc;
+    logger.info({ fallbackPayload }, 'Creating ticket via /tickets (fallback)');
+    const res = await this.post<any>('/tickets', fallbackPayload);
     return res.ticket ?? res;
   }
 
   async updateTicket(ticketId: number, updates: Record<string, any>): Promise<DcTrackTicket> {
-    const res = await this.put<any>(`/tickets/${ticketId}`, updates);
+    // dcTrack expects: { ticket: { ticketNumber, description, ... } }
+    const payload = { ticket: updates };
+    logger.info({ ticketId, payload }, 'Updating ticket');
+    const res = await this.put<any>(`/tickets/${ticketId}`, payload);
     logger.info({ ticketId }, 'Ticket updated');
     return res.ticket ?? res;
   }
@@ -1153,8 +1247,44 @@ export class DcTrackClient extends BaseClient {
     return res.project ?? res;
   }
 
+  async searchProjects(query?: string): Promise<any[]> {
+    // dcTrack doesn't have a project search endpoint, so scan by ID
+    const projects: any[] = [];
+    for (let id = 1; id <= 50; id++) {
+      try {
+        const res = await this.get<any>(`/dcimoperations/projects/${id}`);
+        const proj = res.project ?? res;
+        if (proj && proj.projectName) {
+          projects.push({ ...proj, projectId: id });
+        }
+      } catch {
+        // Project doesn't exist at this ID, continue
+      }
+    }
+    if (query) {
+      const q = query.toLowerCase();
+      return projects.filter(p =>
+        (p.projectName || '').toLowerCase().includes(q) ||
+        (p.projectNumber || '').toLowerCase().includes(q)
+      );
+    }
+    return projects;
+  }
+
+  async resolveProjectId(projectId?: number, projectName?: string): Promise<number> {
+    if (projectId) return projectId;
+    if (!projectName) throw new Error('Either projectId or projectName is required');
+    const matches = await this.searchProjects(projectName);
+    if (!matches.length) throw new Error(`Project "${projectName}" not found`);
+    logger.info({ projectName, resolvedId: matches[0].projectId }, 'Resolved project name to ID');
+    return matches[0].projectId;
+  }
+
   async createProject(project: Record<string, any>): Promise<DcTrackProject> {
-    const res = await this.post<any>('/dcimoperations/projects', project);
+    // dcTrack projects API: location expects the tiLocationCode string (e.g., "AI-DEMO-DC > AI-ROOM-01")
+    const payload: Record<string, any> = { ...project };
+    logger.info({ payload }, 'createProject payload');
+    const res = await this.post<any>('/dcimoperations/projects', payload);
     logger.info({ name: project.projectName }, 'Project created');
     return res.project ?? res;
   }

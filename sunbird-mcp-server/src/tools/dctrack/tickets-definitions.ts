@@ -16,16 +16,22 @@ export const dctrackTicketsToolDefinitions = [
   },
   {
     name: 'dctrack_create_ticket',
-    description: 'Create a new ticket in dcTrack',
+    description: 'Create a new ticket in dcTrack with summary, description, priority, etc.',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        ticketDesc: { type: 'string', description: 'Ticket description' },
-        ticketAction: { type: 'string', description: 'Ticket action type (optional)' },
-        assignedTo: { type: 'string', description: 'Username to assign ticket to (optional)' },
-        ticketComments: { type: 'string', description: 'Initial comments on the ticket (optional)' },
+        ticketDesc: { type: 'string', description: 'Ticket description (legacy field)' },
+        summary: { type: 'string', description: 'Ticket summary / title' },
+        description: { type: 'string', description: 'Detailed description' },
+        priority: { type: 'string', description: 'Priority: High, Medium, Low' },
+        severity: { type: 'string', description: 'Severity level' },
+        ticketPurpose: { type: 'string', description: 'Purpose: Change Request, Work Order, etc.' },
+        ticketType: { type: 'string', description: 'Ticket type' },
+        location: { type: 'string', description: 'Location (e.g. "AI-DEMO-DC > AI-ROOM-01")' },
+        assignedTo: { type: 'string', description: 'Username to assign to' },
+        ticketComments: { type: 'string', description: 'Initial comments' },
       },
-      required: ['ticketDesc'],
+      required: [],
     },
   },
   {

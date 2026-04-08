@@ -7,6 +7,19 @@ import { ToolNotFoundError } from '../../lib/errors/index.js';
 import { logger } from '../../lib/logger.js';
 import * as schemas from './write-schemas.js';
 
+/**
+ * Resolve itemName to itemId via exact name search.
+ * Returns the numeric ID or throws if not found.
+ */
+async function resolveItemId(itemId?: number, itemName?: string): Promise<number> {
+  if (itemId) return itemId;
+  if (!itemName) throw new Error('Either itemId or itemName is required');
+  const results = await dctrackClient.searchItems({ name: itemName, pageSize: 1 });
+  const found = results[0] as any;
+  if (!found?.id) throw new Error(`Item "${itemName}" not found in dcTrack`);
+  return Number(found.id);
+}
+
 export async function handleDcTrackWriteTool(
   toolName: string,
   args: Record<string, any>,
@@ -19,27 +32,62 @@ export async function handleDcTrackWriteTool(
 
     case 'dctrack_update_item': {
       const p = schemas.updateItemSchema.parse(args);
-      return dctrackClient.updateItem(p.itemId, p.updates);
+      const id = await resolveItemId(p.itemId, p.itemName);
+      return dctrackClient.updateItem(id, p.updates);
     }
 
     case 'dctrack_move_item': {
       const p = schemas.moveItemSchema.parse(args);
-      return dctrackClient.moveItem(p.itemId, p.targetCabinetId, p.targetUPosition, p.targetMounting);
+      const id = await resolveItemId(p.itemId, p.itemName);
+      // Prefer cabinet name (dcTrack's cmbCabinet expects a name string)
+      const targetCab: string | number = p.targetCabinetName || p.targetCabinetId || (() => { throw new Error('Either targetCabinetId or targetCabinetName is required'); })();
+      return dctrackClient.moveItem(id, targetCab, p.targetUPosition, p.targetMounting);
     }
 
     case 'dctrack_delete_item': {
       const p = schemas.deleteItemSchema.parse(args);
-      return dctrackClient.deleteItem(p.itemId, p.force);
+      const id = await resolveItemId(p.itemId, p.itemName);
+      return dctrackClient.deleteItem(id, p.force);
     }
 
-    case 'dctrack_create_connection':
-      return dctrackClient.createConnection(schemas.createConnectionSchema.parse(args));
+    case 'dctrack_create_connection': {
+      const conn = schemas.createConnectionSchema.parse(args);
+      // Resolve item names to IDs
+      if (!conn.sourceItemId && conn.sourceItemName) {
+        conn.sourceItemId = await resolveItemId(undefined, conn.sourceItemName);
+      }
+      if (!conn.destItemId && conn.destItemName) {
+        conn.destItemId = await resolveItemId(undefined, conn.destItemName);
+      }
+      if (!conn.sourceItemId) throw new Error('Either sourceItemId or sourceItemName is required');
+      if (!conn.destItemId) throw new Error('Either destItemId or destItemName is required');
+      return dctrackClient.createConnection(conn as any);
+    }
 
     case 'dctrack_delete_connection':
       return dctrackClient.deleteConnection(schemas.deleteConnectionSchema.parse(args).connectionId);
 
-    case 'dctrack_create_change_request':
-      return dctrackClient.createChangeRequest(schemas.createChangeRequestSchema.parse(args));
+    case 'dctrack_create_change_request': {
+      const cr = schemas.createChangeRequestSchema.parse(args);
+      // Resolve itemName to itemId if no itemIds provided
+      if (!cr.itemIds?.length && cr.itemName) {
+        try {
+          const resolvedId = await resolveItemId(undefined, cr.itemName);
+          cr.itemIds = [resolvedId];
+          logger.info({ itemName: cr.itemName, resolvedId }, 'Resolved change request itemName to ID');
+        } catch { /* item not found, proceed without */ }
+      }
+      try {
+        return await dctrackClient.createChangeRequest(cr);
+      } catch (err: any) {
+        logger.warn({ error: err.message }, 'Change request failed — creating as ticket via requests API');
+        return dctrackClient.createTicket({
+          description: cr.summary + (cr.description ? ' - ' + cr.description : ''),
+          summary: cr.summary,
+          priority: cr.priority,
+        });
+      }
+    }
 
     case 'dctrack_update_change_request': {
       const p = schemas.updateChangeRequestSchema.parse(args);

@@ -6,14 +6,17 @@ import { z } from 'zod';
 
 export const createItemSchema = z.object({
   tiName: z.string().describe('Item name (required)'),
-  tiClass: z.string().describe('Item class: Device, Network, Rack PDU, etc.'),
+  tiClass: z.string().describe('Item class: Device, Network, Rack PDU, UPS, Floor PDU, HVAC, Power Outlet, Probe, Data Panel, Passive, etc.'),
   cmbLocation: z.string().optional().describe('Location path (e.g., "AI-DEMO-DC > AI-ROOM-01")'),
+  locationName: z.string().optional().describe('Location name (e.g., "AI-ROOM-01") — auto-resolves to full path. Use for free-standing items (UPS, HVAC, Floor PDU) that go in a room, not a cabinet.'),
   cabinetId: z.number().optional().describe('Cabinet ID (numeric) — will be resolved to cabinet name'),
   cabinetName: z.string().optional().describe('Cabinet name (e.g., "AI-CAB-01") — preferred over cabinetId'),
   make: z.string().optional().describe('Manufacturer name (e.g., "APC", "Rittal") — required by dcTrack'),
   model: z.string().optional().describe('Model name (e.g., "AP8861") — required by dcTrack'),
   tiUPosition: z.number().optional().describe('U position in cabinet (bottom of item)'),
-  tiMounting: z.enum(['Front', 'Rear', 'ZeroU']).optional().describe('Mounting position'),
+  tiMounting: z.string().optional().describe('Mounting: Front, Rear, or ZeroU. Omit for standard rackable items.'),
+  radioRailsUsed: z.enum(['Front', 'Rear', 'Both']).optional().describe('Rails used — use "Front" for Free-Standing 2-post cabinets'),
+  radioDepthPosition: z.enum(['Front', 'Back']).optional().describe('Depth position — use "Back" for side-mounted ZeroU PDUs'),
   modelId: z.number().optional().describe('Model ID from model library'),
   tiSerialNumber: z.string().optional().describe('Serial number'),
   tiAssetTag: z.string().optional().describe('Asset tag'),
@@ -22,7 +25,8 @@ export const createItemSchema = z.object({
 });
 
 export const updateItemSchema = z.object({
-  itemId: z.number().describe('Item ID to update'),
+  itemId: z.number().optional().describe('Item ID to update (provide this OR itemName)'),
+  itemName: z.string().optional().describe('Item name to update (e.g. "AI-SRV-01") — auto-resolves to itemId'),
   updates: z.object({
     tiName: z.string().optional(),
     cmbStatus: z.string().optional(),
@@ -30,27 +34,34 @@ export const updateItemSchema = z.object({
     tiAssetTag: z.string().optional(),
     cabinetId: z.number().optional(),
     tiUPosition: z.number().optional(),
+    cmbRowLabel: z.string().optional(),
+    cmbRowPosition: z.number().optional(),
     customFields: z.record(z.any()).optional(),
-  }),
+  }).passthrough(),
 });
 
 export const moveItemSchema = z.object({
-  itemId: z.number().describe('Item ID to move'),
-  targetCabinetId: z.number().describe('Destination cabinet ID'),
+  itemId: z.number().optional().describe('Item ID to move (provide this OR itemName)'),
+  itemName: z.string().optional().describe('Item name to move (e.g. "AI-SRV-01") — auto-resolves to itemId'),
+  targetCabinetId: z.number().optional().describe('Destination cabinet ID (provide this OR targetCabinetName)'),
+  targetCabinetName: z.string().optional().describe('Destination cabinet name (e.g. "AI-CAB-01") — auto-resolves to ID'),
   targetUPosition: z.number().describe('Target U position'),
   targetMounting: z.enum(['Front', 'Rear', 'ZeroU']).optional(),
 });
 
 export const deleteItemSchema = z.object({
-  itemId: z.number().describe('Item ID to delete'),
+  itemId: z.number().optional().describe('Item ID to delete (provide this OR itemName)'),
+  itemName: z.string().optional().describe('Item name to delete (e.g. "AI-SRV-01") — auto-resolves to itemId'),
   force: z.boolean().default(false).describe('Force delete even if item has connections'),
 });
 
 export const createConnectionSchema = z.object({
-  sourceItemId: z.number().describe('Source item ID'),
+  sourceItemId: z.number().optional().describe('Source item ID (provide this OR sourceItemName)'),
+  sourceItemName: z.string().optional().describe('Source item name — auto-resolves to ID'),
   sourcePortId: z.number().optional(),
   sourcePortName: z.string().optional(),
-  destItemId: z.number().describe('Destination item ID'),
+  destItemId: z.number().optional().describe('Destination item ID (provide this OR destItemName)'),
+  destItemName: z.string().optional().describe('Destination item name — auto-resolves to ID'),
   destPortId: z.number().optional(),
   destPortName: z.string().optional(),
   cableId: z.string().optional(),
@@ -62,10 +73,11 @@ export const deleteConnectionSchema = z.object({
 });
 
 export const createChangeRequestSchema = z.object({
-  requestType: z.enum(['Install', 'Move', 'Decommission', 'PowerOn', 'PowerOff', 'Other']),
+  requestType: z.enum(['Install', 'Move', 'Decommission', 'PowerOn', 'PowerOff', 'Other']).optional().default('Other'),
   summary: z.string().describe('Brief summary of the change'),
   description: z.string().optional(),
   itemIds: z.array(z.number()).optional(),
+  itemName: z.string().optional().describe('Item name (e.g., "AI-CAB-01") — auto-resolves to itemId if itemIds not provided'),
   scheduledDate: z.string().optional().describe('ISO 8601 date'),
   assignee: z.string().optional(),
   priority: z.enum(['Low', 'Medium', 'High', 'Critical']).optional(),
